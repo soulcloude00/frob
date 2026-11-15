@@ -4053,6 +4053,7 @@ mod tests {
             verbose: false,
             quiet: false,
             input_mode: "instant".to_string(),
+            observe: None,
         }
     }
 
