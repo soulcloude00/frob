@@ -4444,14 +4444,14 @@ mod tests {
     }
 
     /// Calls the REAL production function `BrowserManager::register_discovered_page`
-    /// that both `apply_drained_events` drain handlers in cli/src/native/actions.rs
+    /// that both `apply_drained_events` drain handlers in cli/src/native/actions/daemon_state.rs
     /// call (the `Target.attachedToTarget` handler ~line 945 and the
     /// `Target.targetCreated` handler ~line 1082) — not a duplicated copy. This
     /// is the single decision point for finding #3: a foreign target discovered
     /// via a CDP event drain, while untracked, must never steal the active tab
     /// or overwrite the pin binding. If `register_discovered_page`'s internal
     /// call is reverted from `add_page_without_activation` to `add_page`, this
-    /// test fails, and BOTH actions.rs call sites are broken simultaneously
+    /// test fails, and BOTH daemon_state.rs call sites are broken simultaneously
     /// since there is no other path to diverge through.
     /// A pinned session whose sole tab closed (page list empty, tab_gone) must
     /// not have `ensure_page` silently create+bind a blank tab, which would

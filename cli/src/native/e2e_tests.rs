@@ -14792,7 +14792,7 @@ async fn e2e_pin_tab_rebinds_after_daemon_restart() {
 // `Target.attachedToTarget`-before-`Target.targetCreated` race) — empirically
 // in this environment Chrome always delivers `Target.targetCreated` first for
 // a `window.open()` popup, so this only exercises the `new_targets` drain
-// path in actions.rs (~line 1082), which was never the buggy branch. The
+// path in actions/daemon_state.rs, which was never the buggy branch. The
 // deterministic, race-independent regression coverage for finding #3 itself
 // lives at the unit level: `BrowserManager::register_discovered_page` (the
 // single decision point both drain handlers call) is exercised directly by

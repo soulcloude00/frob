@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 /// Abstract backend for browser automation. CDP (Chromium) and WebDriver
-/// (Safari/iOS) share this interface so actions.rs can remain backend-agnostic
+/// (Safari/iOS) share this interface so the actions module can remain backend-agnostic
 /// in the future.
 // async_trait adds #[must_use] to methods returning an already must_use future.
 #[allow(clippy::double_must_use)]
