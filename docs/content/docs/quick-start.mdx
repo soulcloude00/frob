@@ -1,0 +1,96 @@
+---
+title: "Quick Start"
+navTitle: "Quick Start"
+---
+
+## Core workflow
+
+Every browser automation follows this pattern:
+
+```bash
+# 1. Navigate
+frob open example.com
+
+# 2. Snapshot to get element refs
+frob snapshot -i
+# Output:
+# @e1 [heading] "Example Domain"
+# @e2 [link] "More information..."
+
+# 3. Interact using refs
+frob click @e2
+
+# 4. Re-snapshot after page changes
+frob snapshot -i
+```
+
+## Common commands
+
+```bash
+frob open example.com
+frob snapshot -i                # Get interactive elements with refs
+frob click @e2                  # Click by ref
+frob fill @e3 "test@example.com" # Fill input by ref
+frob get text @e1               # Get text content
+frob screenshot                 # Save to temp directory
+frob screenshot page.png        # Save to specific path
+frob close
+```
+
+## Traditional selectors
+
+CSS selectors and semantic locators also supported:
+
+```bash
+frob click "#submit"
+frob fill "#email" "test@example.com"
+frob find role button click --name "Submit"
+```
+
+## Headed mode
+
+Show browser window for debugging:
+
+```bash
+frob open example.com --headed
+```
+
+## Wait for content
+
+```bash
+frob wait @e1                   # Wait for element
+frob wait --text "Welcome"      # Wait for expected text
+frob wait --url "**/dashboard"  # Wait for URL pattern
+frob wait --fn "window.appReady === true" # Wait for JS condition
+frob wait --load domcontentloaded # Wait for the DOM lifecycle event
+```
+
+After a page change, prefer the condition that represents the result you need. Use `load` or `domcontentloaded` only when the lifecycle event is the milestone. `networkidle` remains available for pages known to become quiet, but SSE, WebSockets, polling, and long-polling can keep it from resolving.
+
+## Command chaining
+
+Chain commands with `&&` in a single shell call. The browser persists via a background daemon, so chaining is safe and efficient:
+
+```bash
+# Open, wait, and snapshot in one call
+frob open example.com && frob wait --load domcontentloaded && frob snapshot -i
+
+# Chain multiple interactions
+frob fill @e1 "user@example.com" && frob fill @e2 "pass" && frob click @e3
+
+# Navigate and capture
+frob open example.com && frob wait --load load && frob screenshot page.png
+```
+
+Use `&&` when you don't need intermediate output. Run commands separately when you need to parse output first (e.g., snapshot to discover refs before interacting).
+
+## JSON output
+
+For programmatic parsing in scripts:
+
+```bash
+frob snapshot --json
+frob get text @e1 --json
+```
+
+Note: The default text output is more compact and preferred for AI agents.

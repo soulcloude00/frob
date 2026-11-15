@@ -1,0 +1,58 @@
+---
+title: "Selectors"
+navTitle: "Selectors"
+---
+
+## Refs (recommended)
+
+Refs provide deterministic element selection from snapshots. Best for AI agents.
+
+```bash
+# 1. Get snapshot with refs
+frob snapshot
+# Output:
+# - heading "Example Domain" [ref=e1] [level=1]
+# - button "Submit" [ref=e2]
+# - textbox "Email" [ref=e3]
+# - link "Learn more" [ref=e4]
+
+# 2. Use refs to interact
+frob click @e2                   # Click the button
+frob fill @e3 "test@example.com" # Fill the textbox
+frob get text @e1                # Get heading text
+frob hover @e4                   # Hover the link
+```
+
+### Why refs?
+
+- **Deterministic** - Ref points to exact element from snapshot
+- **Fast** - No DOM re-query needed
+- **AI-friendly** - LLMs can reliably parse and use refs
+
+## CSS selectors
+
+```bash
+frob click "#id"
+frob click ".class"
+frob click "div > button"
+frob click "[data-testid='submit']"
+```
+
+## Text & XPath
+
+```bash
+frob click "text=Submit"
+frob click "xpath=//button[@type='submit']"
+```
+
+## Semantic locators
+
+Find elements by role, label, or other semantic properties:
+
+```bash
+frob find role button click --name "Submit"
+frob find role heading text --name "Skills"     # implicit roles work: <h2>=heading, <ul>=list, top-level <header>=banner
+frob find label "Email" fill "test@test.com"
+frob find placeholder "Search..." fill "query"
+frob find testid "submit-btn" click
+```

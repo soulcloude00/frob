@@ -1,0 +1,10 @@
+{
+  "name": "frob-sandbox-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@frob/sandbox": "file:../../packages/@frob/sandbox",
+    "@vercel/sandbox": "^1.0.0"
+  }
+}

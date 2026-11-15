@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/microfrontends.json",
+  "applications": {
+    "frob": {
+      "packageName": "docs",
+      "development": { "fallback": "https://github.com/soulcloude00/frob" }
+    },
+    "agent-desktop": {
+      "development": { "local": 3001 },
+      "routing": [{ "paths": ["/desktop/:path*", "/docs/desktop/:path*"] }]
+    }
+  }
+}

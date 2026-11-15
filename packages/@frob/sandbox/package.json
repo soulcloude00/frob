@@ -1,0 +1,59 @@
+{
+  "name": "@frob/sandbox",
+  "version": "0.43.0",
+  "description": "Helpers for running frob inside sandbox runtimes",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "mcp-tools.json",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vercel": {
+      "types": "./dist/vercel.d.ts",
+      "import": "./dist/vercel.js"
+    },
+    "./mcp-tools.json": "./mcp-tools.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "pnpm run build",
+    "test": "pnpm run build && node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "frob",
+    "sandbox",
+    "vercel",
+    "eve",
+    "browser-automation"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soulcloude00/frob",
+    "directory": "packages/@frob/sandbox"
+  },
+  "bugs": {
+    "url": "https://github.com/soulcloude00/frob/issues"
+  },
+  "homepage": "https://github.com/soulcloude00/frob",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@vercel/sandbox": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@vercel/sandbox": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

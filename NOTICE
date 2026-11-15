@@ -1,0 +1,8 @@
+frob
+Copyright 2026 soulcloude00
+
+This product is derived from agent-browser (https://github.com/vercel-labs/agent-browser),
+Copyright Vercel, Inc., licensed under the Apache License, Version 2.0.
+
+Modifications: renamed to frob (binary, packages, environment variables, config paths)
+and extended for agent sandboxes and integration with snarf.

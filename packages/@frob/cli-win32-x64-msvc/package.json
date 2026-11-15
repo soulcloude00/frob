@@ -1,0 +1,29 @@
+{
+  "name": "@frob/cli-win32-x64-msvc",
+  "version": "0.43.0",
+  "description": "The win32-x64-msvc native binary for frob",
+  "files": [
+    "bin/frob.exe"
+  ],
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "preferUnplugged": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soulcloude00/frob",
+    "directory": "packages/@frob/cli-win32-x64-msvc"
+  },
+  "bugs": {
+    "url": "https://github.com/soulcloude00/frob/issues"
+  },
+  "homepage": "https://github.com/soulcloude00/frob",
+  "publishConfig": {
+    "access": "public"
+  }
+}
