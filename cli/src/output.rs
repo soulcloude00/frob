@@ -3085,7 +3085,7 @@ Subcommands:
     --body <json>            Respond with custom body
     --allow-origin <origin>  Let a page on <origin> read the mocked body cross-origin
   unroute [url]              Remove route (all if no URL)
-  requests [options]         List captured requests
+  requests [options]         List captured requests (the most recent 10,000)
     --clear                  Clear request log
     --filter <pattern>       Filter by URL pattern
     --type <types>           Filter by resource type (comma-separated: xhr,fetch,document)
@@ -4678,6 +4678,7 @@ Options:
   --args <args>              Browser launch args, newline separated, or comma separated before another flag
                              (or FROB_ARGS). Commas inside a value are kept.
                              e.g., --args "--no-sandbox,--disable-features=Translate,HttpsUpgrades"
+                             --enable-features and --disable-features merge with the lists frob passes.
   --user-agent <ua>          Custom User-Agent (or FROB_USER_AGENT)
   --proxy <server>           Proxy server URL (or FROB_PROXY, HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
                              When launching Chrome, frob accepts a proxy URL with a trailing slash.

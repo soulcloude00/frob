@@ -423,6 +423,15 @@ impl Default for LaunchOptions {
     }
 }
 
+/// Features that draw Chrome's own toolbar and omnibox popup with WebUI.
+const HEADLESS_BROWSER_UI_FEATURES: &[&str] = &["InitialWebUI", "WebUIOmniboxPopup"];
+
+/// A Chrome argument that is not a switch, such as a startup URL or path.
+fn is_positional_arg(arg: &str) -> bool {
+    let arg = arg.trim();
+    !arg.is_empty() && !arg.starts_with('-')
+}
+
 struct ChromeArgs {
     args: Vec<String>,
     user_data_dir: PathBuf,
@@ -449,12 +458,37 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
     // the preset's features (e.g. drop the WebGPU preset's Vulkan). To turn
     // a preset feature off, pass --disable-features=<name>, which Chrome
     // resolves as disabled.
+    //
+    // --disable-features has the same last-switch-wins rule, so user values
+    // are merged into the preset list instead of replacing it. Naming a
+    // preset-disabled feature in --enable-features turns it back on.
+    let effectively_headless = options.effectively_headless();
+    let mut disable_features: Vec<String> = vec![
+        "Translate".to_string(),
+        // Chrome keeps one idle renderer warm for the next cross-site
+        // navigation. It costs about 25 MB per browser and saved no
+        // measurable navigation time under automation.
+        "SpareRendererForSitePerProcess".to_string(),
+    ];
+    if effectively_headless {
+        // Headless Chrome still renders its own toolbar and omnibox popup as
+        // WebUI in a dedicated renderer (about 50 MB) that nothing can see.
+        // Headed windows keep them so the browser looks as Chrome ships it.
+        disable_features.extend(HEADLESS_BROWSER_UI_FEATURES.iter().map(|f| f.to_string()));
+    }
     let mut user_args: Vec<String> = Vec::new();
     for arg in &options.args {
         if let Some(values) = arg.strip_prefix("--enable-features=") {
             for feature in values.split(',').map(str::trim).filter(|f| !f.is_empty()) {
+                disable_features.retain(|f| f != feature);
                 if !enable_features.iter().any(|f| f == feature) {
                     enable_features.push(feature.to_string());
+                }
+            }
+        } else if let Some(values) = arg.strip_prefix("--disable-features=") {
+            for feature in values.split(',').map(str::trim).filter(|f| !f.is_empty()) {
+                if !disable_features.iter().any(|f| f == feature) {
+                    disable_features.push(feature.to_string());
                 }
             }
         } else {
@@ -469,12 +503,16 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
         "--disable-background-networking".to_string(),
         "--disable-backgrounding-occluded-windows".to_string(),
         "--disable-component-update".to_string(),
+        // Chrome's built-in extensions with background pages each hold a
+        // service-worker process (about 40 MB together). User extensions
+        // loaded with --extension are unaffected.
+        "--disable-component-extensions-with-background-pages".to_string(),
         "--disable-default-apps".to_string(),
         "--disable-hang-monitor".to_string(),
         "--disable-popup-blocking".to_string(),
         "--disable-prompt-on-repost".to_string(),
         "--disable-sync".to_string(),
-        "--disable-features=Translate".to_string(),
+        format!("--disable-features={}", disable_features.join(",")),
         format!("--enable-features={}", enable_features.join(",")),
         "--metrics-recording-only".to_string(),
     ];
@@ -500,8 +538,6 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
         args.push("--password-store=basic".to_string());
         args.push("--use-mock-keychain".to_string());
     }
-
-    let effectively_headless = options.effectively_headless();
 
     // Extensions require headed mode in native Chrome (content scripts are not
     // injected in headless mode).  Skip --headless when extensions are loaded.
@@ -573,6 +609,14 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
     if !has_window_size && effectively_headless {
         let (w, h) = options.viewport_size.unwrap_or((1280, 720));
         args.push(format!("--window-size={},{}", w, h));
+    }
+
+    // Without a startup URL Chrome opens chrome://newtab/, which frob never
+    // tracks: it would sit beside the real tab for the whole session, holding
+    // two renderers (about 95 MB). Starting on about:blank gives one tab that
+    // target discovery adopts directly.
+    if !user_args.iter().any(|arg| is_positional_arg(arg)) {
+        args.push("about:blank".to_string());
     }
 
     args.extend(user_args);
@@ -2463,6 +2507,71 @@ exec sleep 60
         if let Some(ref dir) = result.temp_user_data_dir {
             let _ = std::fs::remove_dir_all(dir);
         }
+    }
+
+    fn disabled_features(args: &[String]) -> Vec<&str> {
+        let flags: Vec<&String> = args
+            .iter()
+            .filter(|a| a.starts_with("--disable-features="))
+            .collect();
+        assert_eq!(flags.len(), 1, "Chrome honors only the last switch");
+        flags[0]
+            .strip_prefix("--disable-features=")
+            .unwrap()
+            .split(',')
+            .collect()
+    }
+
+    #[test]
+    fn test_build_args_merges_user_disable_features() {
+        let opts = LaunchOptions {
+            args: vec!["--disable-features=HttpsUpgrades,Translate".to_string()],
+            ..Default::default()
+        };
+        let result = build_chrome_args(&opts).unwrap();
+        let features = disabled_features(&result.args);
+        assert!(features.contains(&"HttpsUpgrades"));
+        assert!(features.contains(&"SpareRendererForSitePerProcess"));
+        assert_eq!(features.iter().filter(|f| **f == "Translate").count(), 1);
+    }
+
+    #[test]
+    fn test_build_args_user_enable_overrides_preset_disable() {
+        let opts = LaunchOptions {
+            args: vec!["--enable-features=SpareRendererForSitePerProcess".to_string()],
+            ..Default::default()
+        };
+        let result = build_chrome_args(&opts).unwrap();
+        let features = disabled_features(&result.args);
+        assert!(!features.contains(&"SpareRendererForSitePerProcess"));
+        assert!(features.contains(&"Translate"));
+    }
+
+    #[test]
+    fn test_build_args_browser_ui_features_disabled_only_when_headless() {
+        let headless = build_chrome_args(&LaunchOptions::default()).unwrap();
+        let headed = build_chrome_args(&LaunchOptions {
+            headless: false,
+            ..Default::default()
+        })
+        .unwrap();
+        for feature in HEADLESS_BROWSER_UI_FEATURES {
+            assert!(disabled_features(&headless.args).contains(feature));
+            assert!(!disabled_features(&headed.args).contains(feature));
+        }
+    }
+
+    #[test]
+    fn test_build_args_starts_on_about_blank_unless_user_gives_a_page() {
+        let result = build_chrome_args(&LaunchOptions::default()).unwrap();
+        assert!(result.args.iter().any(|a| a == "about:blank"));
+
+        let opts = LaunchOptions {
+            args: vec!["https://example.com".to_string()],
+            ..Default::default()
+        };
+        let result = build_chrome_args(&opts).unwrap();
+        assert!(!result.args.iter().any(|a| a == "about:blank"));
     }
 
     #[test]

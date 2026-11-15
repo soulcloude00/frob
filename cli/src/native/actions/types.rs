@@ -128,6 +128,11 @@ pub struct RouteResponse {
     pub allow_origin: Option<String>,
 }
 
+/// Most requests the `network requests` log keeps; older ones are dropped.
+pub(super) const TRACKED_REQUESTS_MAX: usize = 10_000;
+/// How many of the oldest requests are dropped once the log is over the cap.
+pub(super) const TRACKED_REQUESTS_TRIM: usize = 1_000;
+
 #[derive(Clone, serde::Serialize)]
 pub struct TrackedRequest {
     pub url: String,

@@ -260,7 +260,7 @@ frob network route <url> --abort      # Block requests
 frob network route <url> --body '{}'  # Mock response
 frob network route <url> --body '{}' --allow-origin https://www.example.com  # Mock a cross-origin API for that page
 frob network unroute [url]            # Remove routes
-frob network requests                 # View tracked requests
+frob network requests                 # View tracked requests (the log keeps the most recent 10,000)
 frob network requests --filter api    # Filter requests
 frob network request <requestId>      # Full request/response detail incl. body
 frob network har start                # Record traffic (embeds text response bodies)
@@ -561,7 +561,7 @@ frob --proxy <url> ...       # Use proxy server
 frob --proxy-bypass <hosts>  # Hosts to bypass proxy
 frob --headers <json> ...    # HTTP headers scoped to URL's origin
 frob --executable-path <p>   # Custom browser executable
-frob --args "--a,--b=x,y"    # Launch args; commas inside a value are kept
+frob --args "--a,--b=x,y"    # Launch args; commas inside a value are kept; --enable-features and --disable-features merge with frob's own lists
 frob --extension <path> ...  # Load browser extension (repeatable)
 frob --ignore-https-errors   # Ignore SSL certificate errors
 frob --ca-cert <path>        # Trust a CA for CLI requests, and in local Chromium on Linux (install --with-deps provides certutil)

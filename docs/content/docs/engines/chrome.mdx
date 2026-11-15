@@ -113,3 +113,20 @@ Separate args with newlines, or with commas before another flag. Commas inside a
 ```bash
 frob --args "--disable-features=Translate,HttpsUpgrades,--no-sandbox" open example.com
 ```
+
+Chrome honors only the last `--enable-features` and the last `--disable-features` switch, so frob merges your values into the lists it already passes instead of adding a second switch.
+
+## Memory use
+
+frob launches Chrome so that a session holds no processes it does not use:
+
+- Chrome starts on `about:blank`, not the New Tab page, unless your `--args` include a startup URL or path.
+- Chrome's built-in extensions that have background pages are not loaded. Extensions you load with `--extension` are unaffected.
+- The spare renderer that Chrome keeps warm for the next cross-site navigation is disabled (`SpareRendererForSitePerProcess`).
+- In headless mode, Chrome's own toolbar and omnibox popup are not rendered (`InitialWebUI`, `WebUIOmniboxPopup`). Headed windows keep them.
+
+To turn one of these features back on, name it in `--enable-features`:
+
+```bash
+frob --args "--enable-features=SpareRendererForSitePerProcess" open example.com
+```

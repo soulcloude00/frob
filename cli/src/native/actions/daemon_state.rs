@@ -1588,6 +1588,12 @@ impl DaemonState {
                                         response_headers: None,
                                         mime_type: None,
                                     });
+                                    // A long session on a polling page would otherwise
+                                    // grow this log without limit. Trim in batches so
+                                    // the shift is not paid on every request.
+                                    if self.tracked_requests.len() > TRACKED_REQUESTS_MAX {
+                                        self.tracked_requests.drain(..TRACKED_REQUESTS_TRIM);
+                                    }
                                 }
                             }
                         }
