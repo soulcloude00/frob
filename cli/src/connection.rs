@@ -444,6 +444,11 @@ pub fn resolve_port(session: &str) -> Option<u16> {
         .and_then(|s| s.trim().parse::<u16>().ok())
 }
 
+/// How long `ensure_daemon` waits for a daemon it spawned to accept connections.
+const DAEMON_START_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long after the spawn the readiness poll runs every 5 ms, not every 100 ms.
+const DAEMON_START_FAST_POLL_WINDOW: Duration = Duration::from_millis(250);
+
 pub fn daemon_ready(session: &str) -> bool {
     #[cfg(unix)]
     {
@@ -1092,7 +1097,10 @@ pub fn ensure_daemon(session: &str, opts: &DaemonOptions) -> Result<DaemonResult
 
     let spawned_pid = daemon_child.as_ref().map(|child| child.id());
 
-    for _ in 0..50 {
+    // A daemon is usually listening within a few milliseconds, so poll
+    // quickly at first and back off for one that is slow to start.
+    let spawned_at = Instant::now();
+    while spawned_at.elapsed() < DAEMON_START_TIMEOUT {
         if daemon_ready(session) {
             if let Some(result) = ready_spawned_daemon_result(session, opts, spawned_pid, restarted)
             {
@@ -1154,7 +1162,11 @@ pub fn ensure_daemon(session: &str, opts: &DaemonOptions) -> Result<DaemonResult
             }
         }
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(if spawned_at.elapsed() < DAEMON_START_FAST_POLL_WINDOW {
+            Duration::from_millis(5)
+        } else {
+            Duration::from_millis(100)
+        });
     }
 
     #[cfg(unix)]

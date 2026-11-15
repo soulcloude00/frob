@@ -1109,7 +1109,9 @@ fn wait_for_devtools_active_port(
     user_data_dir: &Path,
     deadline: std::time::Instant,
 ) -> Result<String, String> {
-    let poll_interval = Duration::from_millis(50);
+    // Chrome writes the file within about 100 ms; a coarser poll would add
+    // up to its own interval to every launch.
+    let poll_interval = Duration::from_millis(10);
 
     while std::time::Instant::now() <= deadline {
         if let Ok(Some(status)) = child.try_wait() {
