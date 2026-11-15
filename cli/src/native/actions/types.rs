@@ -173,6 +173,7 @@ pub enum BackendType {
 pub struct PendingDialog {
     pub dialog_type: String,
     pub message: String,
+    #[allow(dead_code)]
     pub url: String,
     pub default_prompt: Option<String>,
     /// Flat CDP session the dialog opened on. A dialog on a background tab

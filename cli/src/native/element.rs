@@ -11,6 +11,7 @@ pub struct RefEntry {
     pub role: String,
     pub name: String,
     pub nth: Option<usize>,
+    #[allow(dead_code)]
     pub selector: Option<String>,
     pub frame_id: Option<String>,
     allow_role_fallback: bool,
@@ -39,6 +40,7 @@ impl RefMap {
         }
     }
 
+    #[cfg(test)]
     pub fn add(
         &mut self,
         ref_id: String,
@@ -87,28 +89,6 @@ impl RefMap {
                 selector: None,
                 frame_id: None,
                 allow_role_fallback: false,
-            },
-        );
-    }
-
-    pub fn add_selector(
-        &mut self,
-        ref_id: String,
-        selector: String,
-        role: &str,
-        name: &str,
-        nth: Option<usize>,
-    ) {
-        self.map.insert(
-            ref_id,
-            RefEntry {
-                backend_node_id: None,
-                role: role.to_string(),
-                name: name.to_string(),
-                nth,
-                selector: Some(selector),
-                frame_id: None,
-                allow_role_fallback: true,
             },
         );
     }

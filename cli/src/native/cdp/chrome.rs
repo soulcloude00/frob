@@ -16,6 +16,7 @@ pub struct ChromeProcess {
     child: Child,
     pub ws_url: String,
     temp_user_data_dir: Option<PathBuf>,
+    #[allow(dead_code)]
     temp_nss_home: Option<PreparedNssHome>,
     /// On Unix, the process group ID used to kill the entire Chrome process tree.
     #[cfg(unix)]
@@ -51,10 +52,12 @@ impl Drop for PreparedNssHomeInner {
 
 #[derive(Clone)]
 pub(crate) struct PreparedNssHome {
+    #[allow(dead_code)]
     inner: Arc<PreparedNssHomeInner>,
 }
 
 impl PreparedNssHome {
+    #[cfg(test)]
     fn path(&self) -> &Path {
         &self.inner.path
     }
@@ -92,11 +95,6 @@ impl ChromeProcess {
         // Skips `Drop`, which would kill the Chrome.
         std::mem::forget(self);
         Ok(shared)
-    }
-
-    /// Returns the OS process ID of the Chrome child process.
-    pub fn id(&self) -> u32 {
-        self.child.id()
     }
 
     /// Non-blocking check whether Chrome has exited.
@@ -737,6 +735,7 @@ pub(crate) fn prepare_nss_home(_ca_cert: &CaBundle) -> Result<PreparedNssHome, S
     Err("--ca-cert is currently supported only on Linux".to_string())
 }
 
+#[cfg(test)]
 fn resolve_prepared_nss_home(options: &LaunchOptions) -> Result<Option<PreparedNssHome>, String> {
     if let Some(home) = options.prepared_nss_home.clone() {
         return Ok(Some(home));

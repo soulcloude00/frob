@@ -26,7 +26,6 @@ pub struct AuthProfile {
 }
 
 // Keep legacy Credential alias for backward compatibility
-pub type Credential = AuthProfile;
 
 fn validate_profile_name(name: &str) -> Result<(), String> {
     if name.is_empty()

@@ -503,6 +503,7 @@ fn composite_cursor(frame: &mut image::RgbImage, cursor: RecordingCursorState) {
     }
 }
 
+#[cfg(test)]
 /// PPM carries exact RGB pixels to FFmpeg and supports frame-size changes.
 /// Only the video encoder compresses the composited frame.
 fn cursor_video_frame(source: &[u8], cursor: RecordingCursorState) -> Result<Vec<u8>, String> {

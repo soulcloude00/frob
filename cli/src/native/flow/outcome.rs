@@ -329,6 +329,7 @@ fn reads_as_words(v: &str) -> bool {
     })
 }
 
+#[cfg(test)]
 /// Recorded headers that read as a per-request signature or timestamp: a
 /// name with the whole word `ts`, `timestamp`, `sig`, `signature`, `hmac` or
 /// `nonce`, and a value that looks computed.
@@ -360,6 +361,7 @@ fn classify_signature_headers(
     (signed, unsure)
 }
 
+#[cfg(test)]
 /// Judge a response the same way on every tier: blocked, rejected input,
 /// changed shape, or data.
 pub fn check_response(

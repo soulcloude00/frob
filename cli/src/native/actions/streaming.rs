@@ -87,10 +87,6 @@ pub(super) fn write_extensions_file_from_paths(
     }
 }
 
-pub(super) fn remove_extensions_file(session_id: &str) {
-    let _ = fs::remove_file(extensions_file_path(session_id));
-}
-
 pub(super) async fn current_stream_status(state: &DaemonState) -> Value {
     debug_assert_eq!(
         state.stream_server.is_some(),

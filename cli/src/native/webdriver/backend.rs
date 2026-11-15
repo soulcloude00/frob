@@ -21,23 +21,6 @@ pub trait BrowserBackend: Send + Sync {
     async fn forward(&self) -> Result<(), String>;
     async fn reload(&self) -> Result<(), String>;
     async fn get_cookies(&self) -> Result<Value, String>;
-    fn backend_type(&self) -> &str;
-
-    fn supports(&self, feature: &str) -> bool {
-        match feature {
-            "navigate" | "evaluate" | "screenshot" | "click" | "fill" => true,
-            "screencast" | "tracing" | "network_intercept" | "cdp" => self.backend_type() == "cdp",
-            _ => false,
-        }
-    }
-
-    fn unsupported_error(&self, action: &str) -> String {
-        format!(
-            "Action '{}' is not supported on the {} backend",
-            action,
-            self.backend_type()
-        )
-    }
 }
 
 /// WebDriver implementation of BrowserBackend
@@ -117,10 +100,6 @@ impl BrowserBackend for WebDriverBackend {
 
     async fn get_cookies(&self) -> Result<Value, String> {
         self.client.get_cookies().await
-    }
-
-    fn backend_type(&self) -> &str {
-        "webdriver"
     }
 }
 

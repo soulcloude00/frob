@@ -461,14 +461,6 @@ pub enum BrowserProcess {
 }
 
 impl BrowserProcess {
-    pub fn kill(&mut self) {
-        match self {
-            BrowserProcess::Chrome(p) => p.kill(),
-            BrowserProcess::Lightpanda(p) => p.kill(),
-            BrowserProcess::Obscura(p) => p.kill(),
-        }
-    }
-
     pub fn wait_or_kill(&mut self, timeout: std::time::Duration) {
         match self {
             BrowserProcess::Chrome(p) => p.wait_or_kill(timeout),
@@ -496,6 +488,7 @@ pub struct BrowserManager {
     default_timeout_ms: u64,
     /// Stored download path from launch options, re-applied to new contexts (e.g., recording)
     pub download_path: Option<String>,
+    #[allow(dead_code)]
     /// Whether to ignore HTTPS certificate errors, re-applied to new contexts (e.g., recording)
     pub ignore_https_errors: bool,
     /// Origins visited during this session, used by save_state to collect cross-origin localStorage.
@@ -1527,10 +1520,7 @@ impl BrowserManager {
         }
     }
 
-    pub fn pin_tab(&self) -> bool {
-        self.pin_tab
-    }
-
+    #[cfg(test)]
     /// The target id this session is bound to, if any.
     pub fn bound_target_id(&self) -> Option<&str> {
         self.bound_target_id.as_deref()
@@ -1871,14 +1861,6 @@ impl BrowserManager {
         Ok(())
     }
 
-    pub fn has_pages(&self) -> bool {
-        !self.pages.is_empty()
-    }
-
-    pub fn default_timeout_ms(&self) -> u64 {
-        self.default_timeout_ms
-    }
-
     /// Checks if the CDP connection is alive by sending a simple command.
     /// Returns false if the command times out or fails.
     pub async fn is_connection_alive(&self) -> bool {
@@ -2041,18 +2023,6 @@ impl BrowserManager {
     // -----------------------------------------------------------------------
     // Tab management
     // -----------------------------------------------------------------------
-
-    /// Checks if `active_page_index` is still valid and adjusts it if not
-    /// (e.g., after a tab was closed).
-    pub fn update_active_page_if_needed(&mut self) {
-        if self.pages.is_empty() {
-            self.active_page_index = 0;
-            return;
-        }
-        if self.active_page_index >= self.pages.len() {
-            self.active_page_index = self.pages.len() - 1;
-        }
-    }
 
     fn update_active_page_after_removal(&mut self, removed_index: usize) {
         self.active_page_index = active_page_index_after_removal(
@@ -2613,18 +2583,6 @@ impl BrowserManager {
             .to_string())
     }
 
-    pub async fn remove_script_to_evaluate(&self, identifier: &str) -> Result<(), String> {
-        let session_id = self.active_session_id()?;
-        self.client
-            .send_command(
-                "Page.removeScriptToEvaluateOnNewDocument",
-                Some(json!({ "identifier": identifier })),
-                Some(session_id),
-            )
-            .await?;
-        Ok(())
-    }
-
     pub async fn tab_switch_by_id(
         &mut self,
         tab_id: u32,
@@ -2668,6 +2626,7 @@ impl BrowserManager {
         self.add_page_with_activation(page, true);
     }
 
+    #[cfg(test)]
     /// Append a page WITHOUT activating it. Use for event-discovered targets
     /// (`Target.targetCreated` drained from the shared Chrome) so a tab the
     /// human opens never steals the agent's active tab or its binding.
@@ -2770,6 +2729,7 @@ impl BrowserManager {
         self.pages.len()
     }
 
+    #[cfg(test)]
     /// Returns the stable `tab_id` of the currently active page, if any.
     pub fn active_tab_id(&self) -> Option<u32> {
         self.pages.get(self.active_page_index).map(|p| p.tab_id)

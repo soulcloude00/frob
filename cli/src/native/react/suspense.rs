@@ -132,12 +132,18 @@ pub struct ActionableBlocker {
     pub key: String,
     pub name: String,
     pub kind: BlockerKind,
+    #[allow(dead_code)]
     pub env: Option<String>,
+    #[allow(dead_code)]
     pub description: String,
+    #[allow(dead_code)]
     pub owner_name: Option<String>,
+    #[allow(dead_code)]
     pub awaiter_name: Option<String>,
     pub source_frame: Option<StackFrame>,
+    #[allow(dead_code)]
     pub owner_frame: Option<StackFrame>,
+    #[allow(dead_code)]
     pub awaiter_frame: Option<StackFrame>,
     pub actionability: i32,
     pub suggestion: String,
@@ -148,11 +154,13 @@ pub struct BoundaryInsight {
     pub id: i64,
     pub name: Option<String>,
     pub boundary_kind: BoundaryKind,
+    #[allow(dead_code)]
     pub environments: Vec<String>,
     pub source: Option<(String, i64, i64)>,
     pub rendered_by: Vec<Owner>,
     pub primary_blocker: Option<ActionableBlocker>,
     pub blockers: Vec<ActionableBlocker>,
+    #[allow(dead_code)]
     pub unknown_suspenders: Option<String>,
     pub actionability: i32,
     pub recommendation: String,
@@ -183,6 +191,7 @@ pub struct AnalysisReport {
 pub struct StaticBoundarySummary {
     pub name: Option<String>,
     pub source: Option<(String, i64, i64)>,
+    #[allow(dead_code)]
     pub rendered_by: Vec<Owner>,
 }
 

@@ -28,6 +28,7 @@ pub struct ProviderConnection {
     pub metadata: Option<Value>,
 }
 
+#[cfg(test)]
 /// Connects to the specified browser provider and returns a CDP WebSocket URL
 /// along with session info for cleanup on failure.
 pub async fn connect_provider(provider_name: &str) -> Result<ProviderConnection, String> {
@@ -114,12 +115,6 @@ pub async fn connect_provider_with_plugins_and_options(
     }
 }
 
-/// Close a provider session (call on CDP connect failure).
-pub async fn close_provider_session(session: &ProviderSession) -> Result<(), String> {
-    let plugins = crate::plugins::plugins_from_env();
-    close_provider_session_with_plugins(session, &plugins).await
-}
-
 /// Close a provider session with the plugin registry that created it.
 pub async fn close_provider_session_with_plugins(
     session: &ProviderSession,
@@ -184,14 +179,6 @@ pub async fn close_provider_session_with_plugins(
         _ => {}
     }
     Ok(())
-}
-
-pub async fn connect_plugin_provider_with_plugins(
-    provider_name: &str,
-    plugins: &[crate::plugins::PluginConfig],
-    settings: &Running,
-) -> Result<ProviderConnection, String> {
-    connect_plugin_provider_with_plugins_and_options(provider_name, plugins, settings, None).await
 }
 
 pub async fn connect_plugin_provider_with_plugins_and_options(

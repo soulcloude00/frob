@@ -136,29 +136,6 @@ const CONTENT_ROLES: &[&str] = &[
     "navigation",
 ];
 
-const STRUCTURAL_ROLES: &[&str] = &[
-    "generic",
-    "group",
-    "list",
-    "table",
-    "row",
-    "rowgroup",
-    "grid",
-    "treegrid",
-    "menu",
-    "menubar",
-    "toolbar",
-    "tablist",
-    "tree",
-    "directory",
-    "document",
-    "application",
-    "presentation",
-    "none",
-    "WebArea",
-    "RootWebArea",
-];
-
 const ZERO_WIDTH_CHARS: &[char] = &[
     '\u{FEFF}', // BOM / Zero Width No-Break Space
     '\u{200B}', // Zero Width Space
@@ -1738,6 +1715,7 @@ fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
     (level, checked, expanded, selected, disabled, required)
 }
 
+#[cfg(test)]
 /// Build the set of texts to de-duplicate cursor-interactive elements against.
 ///
 /// All ref-bearing ARIA tree nodes have their names stored in `ref_map` during

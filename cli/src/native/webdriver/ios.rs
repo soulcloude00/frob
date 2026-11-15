@@ -132,22 +132,6 @@ pub fn boot_simulator(udid: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn shutdown_simulator(udid: &str) -> Result<(), String> {
-    let output = Command::new("xcrun")
-        .args(["simctl", "shutdown", udid])
-        .output()
-        .map_err(|e| format!("Failed to shutdown simulator: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.contains("current state: Shutdown") {
-            return Ok(());
-        }
-        return Err(format!("Failed to shutdown simulator {}: {}", udid, stderr));
-    }
-    Ok(())
-}
-
 pub fn select_device(device_name: Option<&str>, udid: Option<&str>) -> Result<IosDevice, String> {
     if let Some(u) = udid {
         let devices = list_all_devices()?;
