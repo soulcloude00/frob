@@ -141,6 +141,9 @@ pub struct SetDiscoverTargetsParams {
 #[serde(rename_all = "camelCase")]
 pub struct CreateTargetParams {
     pub url: String,
+    /// The browser context to create the tab in; the default one when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_context_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

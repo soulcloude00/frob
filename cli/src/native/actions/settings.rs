@@ -44,6 +44,7 @@ pub(super) fn launch_envelope_patch(cmd: &Value, engine: Option<&str>) -> Patch 
         ("hideScrollbars", Key::HideScrollbars),
         ("webgpu", Key::Webgpu),
         ("webmcp", Key::Webmcp),
+        ("sharedBrowser", Key::SharedBrowser),
         ("noXvfb", Key::NoXvfb),
         ("clearCaCert", Key::ClearCaCert),
     ] {

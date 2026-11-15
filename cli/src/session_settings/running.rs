@@ -208,6 +208,7 @@ impl Running {
             use_real_keychain: false,
             webgpu: self.bool(Key::Webgpu).unwrap_or(false),
             webmcp: self.webmcp(),
+            shared_browser: self.bool(Key::SharedBrowser).unwrap_or(false),
             no_xvfb: self.no_xvfb(),
             restrict_webrtc: self.get(Key::AllowedDomains).is_some(),
         }

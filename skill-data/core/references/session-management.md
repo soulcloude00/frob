@@ -8,6 +8,7 @@ Multiple isolated browser sessions with state persistence and concurrent browsin
 
 - [Named Sessions](#named-sessions)
 - [Session Isolation Properties](#session-isolation-properties)
+- [Shared Browser](#shared-browser)
 - [Tab Pinning in a Shared Browser](#tab-pinning-in-a-shared-browser)
 - [Changing settings on a running session](#changing-settings-on-a-running-session)
 - [Session State Persistence](#session-state-persistence)
@@ -50,6 +51,21 @@ Each session has independent:
 - Cache
 - Browsing history
 - Open tabs
+
+## Shared Browser
+
+Running many sessions at once? Add `--shared-browser` (or set `FROB_SHARED_BROWSER=1`) so they run as isolated contexts in one Chrome instead of one Chrome each. Memory per extra session drops by about 40%.
+
+```bash
+frob --session agent1 --shared-browser open site-a.com
+frob --session agent2 --shared-browser open site-b.com
+```
+
+- Cookies, storage, and tabs stay separate per session.
+- The first session starts the Chrome; the last one to close stops it.
+- Rejected with the flag, because they apply to the whole browser: `--headed`, `--extension`, `--profile`, `--executable-path`, `--proxy`, `--args`, `--ignore-https-errors`, `--allow-file-access`, `--ca-cert`, `--webgpu`, `--no-webmcp`, `--hide-scrollbars false`, `--allowed-domains`.
+- Unavailable in a shared session: `trace`, `profiler`, `download`. Use a session without the flag for those.
+- macOS and Linux only.
 
 ## Tab Pinning in a Shared Browser
 

@@ -1,7 +1,20 @@
 use super::*;
 
+/// Chrome traces the whole browser and runs one trace at a time, so a trace
+/// would record the other sessions sharing it.
+fn reject_in_shared_browser(mgr: &BrowserManager, what: &str) -> Result<(), String> {
+    if mgr.is_shared() {
+        return Err(format!(
+            "{what} is not available with --shared-browser: it records the whole browser, \
+             which other sessions share"
+        ));
+    }
+    Ok(())
+}
+
 pub(super) async fn handle_trace_start(state: &mut DaemonState) -> Result<Value, String> {
     let mgr = state.browser.as_ref().ok_or("Browser not launched")?;
+    reject_in_shared_browser(mgr, "Tracing")?;
     let session_id = mgr.active_session_id()?.to_string();
     native_tracing::trace_start(&mgr.client, &session_id, &mut state.tracing_state).await
 }
@@ -21,6 +34,7 @@ pub(super) async fn handle_profiler_start(
     state: &mut DaemonState,
 ) -> Result<Value, String> {
     let mgr = state.browser.as_ref().ok_or("Browser not launched")?;
+    reject_in_shared_browser(mgr, "Tracing")?;
     let session_id = mgr.active_session_id()?.to_string();
     let categories = cmd.get("categories").and_then(|v| v.as_array()).map(|arr| {
         arr.iter()

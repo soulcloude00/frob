@@ -1199,7 +1199,7 @@ impl DaemonState {
                             if let Ok(te) =
                                 serde_json::from_value::<TargetCreatedEvent>(event.params.clone())
                             {
-                                if should_track_target(&te.target_info) {
+                                if owns_target(self.browser.as_ref(), &te.target_info) {
                                     let already_tracked = self
                                         .browser
                                         .as_ref()
@@ -1216,7 +1216,7 @@ impl DaemonState {
                             if let Ok(te) = serde_json::from_value::<TargetInfoChangedEvent>(
                                 event.params.clone(),
                             ) {
-                                if should_track_target(&te.target_info) {
+                                if owns_target(self.browser.as_ref(), &te.target_info) {
                                     // If this target is not yet tracked (e.g. it was
                                     // initially filtered because its URL was
                                     // chrome://newtab/), promote it to a new target
@@ -1305,7 +1305,9 @@ impl DaemonState {
                                         attached_iframe_sessions
                                             .push((target_info.target_id, sid.to_string()));
                                     }
-                                    Ok(target_info) if should_track_target(&target_info) => {
+                                    Ok(target_info)
+                                        if owns_target(self.browser.as_ref(), &target_info) =>
+                                    {
                                         attached_page_sessions.push((target_info, sid.to_string()));
                                     }
                                     Ok(target_info) if target_is_worker_like(&target_info) => {
@@ -1769,6 +1771,15 @@ impl DaemonState {
             detached_iframe_sessions,
             har_finished_requests,
         }
+    }
+}
+
+/// Whether `target` is a tab this session tracks. A `--shared-browser`
+/// session sees other sessions' tabs in target events and must skip them.
+fn owns_target(browser: Option<&BrowserManager>, target: &TargetInfo) -> bool {
+    match browser {
+        Some(browser) => browser.owns_target(target),
+        None => should_track_target(target),
     }
 }
 

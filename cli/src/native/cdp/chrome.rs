@@ -76,6 +76,24 @@ impl ChromeProcess {
         let _ = self.child.wait();
     }
 
+    /// Gives up ownership so the Chrome outlives this value and this daemon.
+    /// The shared browser registry stops it when its last session leaves.
+    #[cfg(unix)]
+    pub fn into_shared(mut self) -> Result<super::super::shared_browser::SharedChrome, String> {
+        let (Some(pgid), Some(user_data_dir)) = (self.pgid, self.temp_user_data_dir.take()) else {
+            return Err("A shared browser needs its own process group and profile".to_string());
+        };
+        let shared = super::super::shared_browser::SharedChrome {
+            pid: self.child.id(),
+            pgid,
+            ws_url: self.ws_url.clone(),
+            user_data_dir,
+        };
+        // Skips `Drop`, which would kill the Chrome.
+        std::mem::forget(self);
+        Ok(shared)
+    }
+
     /// Returns the OS process ID of the Chrome child process.
     pub fn id(&self) -> u32 {
         self.child.id()
@@ -366,6 +384,9 @@ pub struct LaunchOptions {
     /// Enable Chrome's experimental WebMCP implementation for frob
     /// managed sessions. Enabled by default and disabled with `--no-webmcp`.
     pub webmcp: bool,
+    /// Run the session as an isolated browser context in a Chrome shared with
+    /// other sessions (`--shared-browser`), not in a Chrome of its own.
+    pub shared_browser: bool,
     /// Disable automatic Xvfb for headed launches on displayless Linux
     /// hosts (FROB_NO_XVFB). Carried as a launch option so the
     /// CLI's current environment wins over the env a long-lived daemon was
@@ -417,6 +438,7 @@ impl Default for LaunchOptions {
             use_real_keychain: false,
             webgpu: false,
             webmcp: true,
+            shared_browser: false,
             no_xvfb: false,
             restrict_webrtc: false,
         }
@@ -615,7 +637,11 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
     // tracks: it would sit beside the real tab for the whole session, holding
     // two renderers (about 95 MB). Starting on about:blank gives one tab that
     // target discovery adopts directly.
-    if !user_args.iter().any(|arg| is_positional_arg(arg)) {
+    if options.shared_browser {
+        // Every session opens its tabs in its own context, so a startup tab
+        // in the default context would belong to no one.
+        args.push("--no-startup-window".to_string());
+    } else if !user_args.iter().any(|arg| is_positional_arg(arg)) {
         args.push("about:blank".to_string());
     }
 

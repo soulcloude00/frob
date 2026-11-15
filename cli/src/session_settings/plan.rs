@@ -103,6 +103,7 @@ fn is_local_only(key: Key) -> bool {
             | Key::StorageState
             | Key::UserAgent
             | Key::Webgpu
+            | Key::SharedBrowser
     )
 }
 
@@ -129,6 +130,7 @@ fn default_value(key: Key) -> Option<Value> {
         | Key::IgnoreHttpsErrors
         | Key::AllowFileAccess
         | Key::Webgpu
+        | Key::SharedBrowser
         | Key::NoXvfb
         | Key::NoAutoDialog
         | Key::PinTab

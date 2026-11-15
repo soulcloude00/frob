@@ -4717,6 +4717,11 @@ Options:
   --webgpu                   Enable WebGPU; uses SwiftShader software Vulkan on Linux, no GPU required (or FROB_WEBGPU env)
   --no-webmcp                Disable default experimental WebMCP support for locally launched Chrome
                              (or FROB_NO_WEBMCP env)
+  --shared-browser           Run the session as an isolated context in one Chrome shared with
+                             other --shared-browser sessions, which uses less memory per session.
+                             Headless Chrome on macOS and Linux only; browser-wide settings such as
+                             --proxy, --args, --profile, --extension, and --allowed-domains are
+                             rejected (or FROB_SHARED_BROWSER env)
   --no-auto-connect          Return a session attached with --auto-connect to a local launch
                              (or --auto-connect false; overrides FROB_AUTO_CONNECT)
   --cdp <port|url>           Connect via CDP; root WebSocket query slash is optional
@@ -4824,6 +4829,7 @@ Environment:
   FROB_NO_XVFB          Disable automatic Xvfb for headed mode on displayless Linux hosts
   FROB_NO_VERSION_CHECK Skip the outdated-Chrome CVE check (it fetches chromereleases.googleblog.com)
   FROB_WEBGPU           Enable WebGPU (SwiftShader software Vulkan on Linux)
+  FROB_SHARED_BROWSER   Run sessions as isolated contexts in one shared Chrome
   FROB_JSON             JSON output
   FROB_ANNOTATE         Annotated screenshot with numbered labels and legend
   FROB_DEBUG            Debug output

@@ -2598,6 +2598,8 @@ mod tests {
         flags.cli_webgpu = false;
         flags.no_webmcp = false;
         flags.cli_no_webmcp = false;
+        flags.shared_browser = false;
+        flags.cli_shared_browser = false;
         flags.color_scheme = None;
         flags.download_path = None;
         flags.engine = None;

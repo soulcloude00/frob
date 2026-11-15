@@ -554,6 +554,7 @@ frob --json ...              # JSON output for parsing
 frob --headed ...            # Show browser window (not headless; on displayless Linux an Xvfb display starts automatically)
 frob --webgpu ...            # Enable WebGPU (SwiftShader software Vulkan on Linux, no GPU needed)
 frob --no-webmcp ...         # Disable default experimental WebMCP Chrome features (or FROB_NO_WEBMCP env)
+frob --shared-browser ...    # Isolated context in one Chrome shared by all --shared-browser sessions; less memory per session (see references/session-management.md)
 frob --cdp <port|url> ...    # Connect via CDP; root query slash is optional
 frob --cdp <url> --cdp-headers '{"Authorization":"Bearer <token>"}' ...  # Auth headers for discovery and handshake
 frob --pin-tab ...           # Pin the session to its bound tab (strict tab binding)
@@ -674,6 +675,7 @@ FROB_INIT_SCRIPTS="/a.js,/b.js"     # Comma-separated init script paths
 FROB_ENABLE="react-devtools"        # Comma-separated built-in init script features
 FROB_HIDE_SCROLLBARS="false"        # Keep native scrollbars visible in headless Chromium screenshots
 FROB_WEBGPU="1"                     # Enable the WebGPU launch preset (see references/webgpu.md)
+FROB_SHARED_BROWSER="1"             # Run sessions as isolated contexts in one shared Chrome
 FROB_NO_XVFB="1"                    # Disable automatic Xvfb for headed mode on displayless Linux
 FROB_NO_VERSION_CHECK="1"           # Skip the outdated-Chrome CVE check and its request to Google
 FROB_PROVIDER="browserbase"         # Browser provider or configured provider plugin

@@ -116,6 +116,10 @@
       "type": "boolean",
       "description": "Enable WebGPU (SwiftShader software Vulkan on Linux; no GPU required). Defaults to false."
     },
+    "sharedBrowser": {
+      "type": "boolean",
+      "description": "Run each session as an isolated context in one Chrome shared with other sessions, which uses less memory per session. Headless Chrome on macOS and Linux only. Can also be set with FROB_SHARED_BROWSER. Defaults to false."
+    },
     "noWebmcp": {
       "type": "boolean",
       "description": "Disable experimental WebMCP support, which is enabled by default for locally launched Chrome. Can also be set with FROB_NO_WEBMCP."

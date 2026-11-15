@@ -15,6 +15,9 @@ pub(super) async fn wait_for_downloaded_file(path: &std::path::Path) -> bool {
 /// `download`: clicks the selector and saves the resulting file at `path`.
 /// Only a browser this daemon launched may name files on the local filesystem.
 pub(super) async fn handle_download(cmd: &Value, state: &mut DaemonState) -> Result<Value, String> {
+    if state.browser.as_ref().is_some_and(|mgr| mgr.is_shared()) {
+        return Err("download is not available with --shared-browser".to_string());
+    }
     if state
         .browser
         .as_ref()

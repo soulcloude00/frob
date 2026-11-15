@@ -2513,6 +2513,10 @@
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
           },
+          "sharedBrowser": {
+            "description": "Run the session as an isolated context in one Chrome shared with other sessions, which uses about half the memory per session. Headless Chrome on macOS and Linux only; explicit true/false overrides FROB_SHARED_BROWSER and config.",
+            "type": "boolean"
+          },
           "timeoutMs": {
             "default": 120000,
             "description": "Maximum time to wait for this tool call.",

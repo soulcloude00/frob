@@ -153,6 +153,7 @@ pub struct Config {
     pub hide_scrollbars: Option<bool>,
     pub webgpu: Option<bool>,
     pub no_webmcp: Option<bool>,
+    pub shared_browser: Option<bool>,
     pub ignore_https_errors: Option<bool>,
     pub ca_cert: Option<String>,
     pub clear_ca_cert: Option<bool>,
@@ -239,6 +240,7 @@ impl Config {
             hide_scrollbars: other.hide_scrollbars.or(self.hide_scrollbars),
             webgpu: other.webgpu.or(self.webgpu),
             no_webmcp: other.no_webmcp.or(self.no_webmcp),
+            shared_browser: other.shared_browser.or(self.shared_browser),
             ignore_https_errors: other.ignore_https_errors.or(self.ignore_https_errors),
             ca_cert,
             clear_ca_cert,
@@ -519,6 +521,9 @@ pub struct Flags {
     pub hide_scrollbars: bool,
     pub webgpu: bool,
     pub no_webmcp: bool,
+    /// `--shared-browser`: run this session as an isolated context in a
+    /// Chrome shared with other sessions, not in a Chrome of its own.
+    pub shared_browser: bool,
     /// Env-only (FROB_NO_XVFB): disable automatic Xvfb for headed
     /// launches on displayless Linux hosts.
     pub no_xvfb: bool,
@@ -577,6 +582,7 @@ pub struct Flags {
     pub cli_headed: bool,
     pub cli_webgpu: bool,
     pub cli_no_webmcp: bool,
+    pub cli_shared_browser: bool,
     /// True when `--auto-connect` was passed on the command line.
     pub cli_auto_connect: bool,
     /// True when `--no-auto-connect` (or `--auto-connect false`) was passed:
@@ -745,6 +751,8 @@ pub fn try_parse_flags(args: &[String]) -> Result<Flags, String> {
             .unwrap_or(true),
         webgpu: env_var_is_truthy("FROB_WEBGPU") || config.webgpu.unwrap_or(false),
         no_webmcp: env_var_is_truthy("FROB_NO_WEBMCP") || config.no_webmcp.unwrap_or(false),
+        shared_browser: env_var_is_truthy("FROB_SHARED_BROWSER")
+            || config.shared_browser.unwrap_or(false),
         no_xvfb: env_var_is_truthy("FROB_NO_XVFB"),
         no_xvfb_set: env::var_os("FROB_NO_XVFB").is_some(),
         device: env::var("FROB_IOS_DEVICE").ok().or(config.device),
@@ -827,6 +835,7 @@ pub fn try_parse_flags(args: &[String]) -> Result<Flags, String> {
         cli_headed: false,
         cli_webgpu: false,
         cli_no_webmcp: false,
+        cli_shared_browser: false,
         cli_auto_connect: false,
         no_auto_connect: false,
         cli_restore: false,
@@ -887,6 +896,14 @@ pub fn try_parse_flags(args: &[String]) -> Result<Flags, String> {
                 let (val, consumed) = parse_bool_arg(args, i);
                 flags.no_webmcp = val;
                 flags.cli_no_webmcp = true;
+                if consumed {
+                    i += 1;
+                }
+            }
+            "--shared-browser" => {
+                let (val, consumed) = parse_bool_arg(args, i);
+                flags.shared_browser = val;
+                flags.cli_shared_browser = true;
                 if consumed {
                     i += 1;
                 }
@@ -1391,6 +1408,7 @@ pub fn clean_args(args: &[String]) -> Vec<String> {
         "--headed",
         "--webgpu",
         "--no-webmcp",
+        "--shared-browser",
         "--debug",
         "--ignore-https-errors",
         "--allow-file-access",
@@ -2480,6 +2498,26 @@ mod tests {
         let flags = parse_flags(&args("open example.com"));
         assert!(!flags.webgpu);
         assert!(!flags.cli_webgpu);
+    }
+
+    #[test]
+    fn test_shared_browser_flag_and_env() {
+        let guard = EnvGuard::new(&["FROB_SHARED_BROWSER"]);
+        guard.remove("FROB_SHARED_BROWSER");
+        let flags = parse_flags(&args("open example.com"));
+        assert!(!flags.shared_browser);
+
+        let flags = parse_flags(&args("--shared-browser open example.com"));
+        assert!(flags.shared_browser);
+        assert!(flags.cli_shared_browser);
+        assert_eq!(
+            clean_args(&args("--shared-browser open example.com")),
+            args("open example.com")
+        );
+
+        guard.set("FROB_SHARED_BROWSER", "1");
+        let flags = parse_flags(&args("--shared-browser false open example.com"));
+        assert!(!flags.shared_browser, "an explicit false beats the env");
     }
 
     #[test]

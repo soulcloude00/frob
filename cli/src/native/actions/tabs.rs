@@ -321,24 +321,30 @@ pub(super) async fn handle_window_new(
     let (tab_id, session_id) = {
         let mgr = state.browser.as_mut().ok_or("Browser not launched")?;
 
-        // Create a new browser context
-        let context_result = mgr
-            .client
-            .send_command_no_params("Target.createBrowserContext", None)
-            .await?;
-        let context_id = context_result
-            .get("browserContextId")
-            .and_then(|v| v.as_str())
-            .ok_or("Failed to create browser context")?
-            .to_string();
+        let create_params = match mgr.browser_context_id() {
+            // A shared-browser session stays inside its own context, which is
+            // what keeps it apart from the other sessions.
+            Some(context_id) => {
+                json!({ "url": "about:blank", "browserContextId": context_id, "newWindow": true })
+            }
+            None => {
+                // Create a new browser context
+                let context_result = mgr
+                    .client
+                    .send_command_no_params("Target.createBrowserContext", None)
+                    .await?;
+                let context_id = context_result
+                    .get("browserContextId")
+                    .and_then(|v| v.as_str())
+                    .ok_or("Failed to create browser context")?
+                    .to_string();
+                json!({ "url": "about:blank", "browserContextId": context_id })
+            }
+        };
 
         let create_result: crate::native::cdp::types::CreateTargetResult = mgr
             .client
-            .send_command_typed(
-                "Target.createTarget",
-                &json!({ "url": "about:blank", "browserContextId": context_id }),
-                None,
-            )
+            .send_command_typed("Target.createTarget", &create_params, None)
             .await?;
 
         let attach: crate::native::cdp::types::AttachToTargetResult = mgr

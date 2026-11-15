@@ -112,6 +112,7 @@ async fn eval_origin_storage(
 /// network requests.
 async fn collect_storage_via_temp_target(
     client: &CdpClient,
+    browser_context_id: Option<String>,
     origins: &[String],
     origin_js: &str,
 ) -> Result<Vec<OriginStorage>, String> {
@@ -120,6 +121,7 @@ async fn collect_storage_via_temp_target(
             "Target.createTarget",
             &CreateTargetParams {
                 url: "about:blank".to_string(),
+                browser_context_id,
             },
             None,
         )
@@ -298,8 +300,20 @@ pub async fn save_state(
     all_origins.remove(&current_origin);
     if !all_origins.is_empty() {
         let remaining: Vec<String> = all_origins.into_iter().collect();
+        // Storage is partitioned by browser context, so the temp target must
+        // be in the same context as the page being saved.
+        let browser_context_id = client
+            .send_command("Target.getTargetInfo", None, Some(session_id))
+            .await
+            .ok()
+            .and_then(|info| {
+                info.get("targetInfo")?
+                    .get("browserContextId")?
+                    .as_str()
+                    .map(String::from)
+            });
         if let Ok(temp_origins) =
-            collect_storage_via_temp_target(client, &remaining, origin_js).await
+            collect_storage_via_temp_target(client, browser_context_id, &remaining, origin_js).await
         {
             origins.extend(temp_origins);
         }

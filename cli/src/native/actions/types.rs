@@ -263,6 +263,7 @@ pub(super) const LOCAL_ONLY_LAUNCH_FIELDS: &[&str] = &[
     "profile",
     "proxy",
     "proxyBypass",
+    "sharedBrowser",
     "storageState",
     "userAgent",
     "webgpu",

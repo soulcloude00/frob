@@ -55,6 +55,8 @@ pub(crate) fn full_flags() -> Flags {
     f.cli_hide_scrollbars = true;
     f.webgpu = true;
     f.cli_webgpu = true;
+    f.shared_browser = true;
+    f.cli_shared_browser = true;
     f.no_webmcp = true;
     f.cli_no_webmcp = true;
     f.no_xvfb = true;
@@ -452,6 +454,7 @@ fn defaults_view() {
     assert!(!o.ignore_https_errors);
     assert!(o.hide_scrollbars);
     assert!(!o.webgpu);
+    assert!(!o.shared_browser);
     assert!(o.webmcp);
     assert!(!o.no_xvfb);
     assert!(!o.restrict_webrtc);
@@ -537,6 +540,11 @@ fn boolean_spellings_match_each_variable() {
     assert!(!seeded(&[("FROB_HEADED", "yes")]).headed());
     assert!(!seeded(&[("FROB_WEBGPU", "yes")]).launch_options().webgpu);
     assert!(seeded(&[("FROB_WEBGPU", "true")]).launch_options().webgpu);
+    assert!(
+        seeded(&[("FROB_SHARED_BROWSER", "1")])
+            .launch_options()
+            .shared_browser
+    );
     // `1`, `true` or `yes`.
     assert!(seeded(&[("FROB_PIN_TAB", "yes")]).pin_tab());
     assert!(!seeded(&[("FROB_PIN_TAB", "on")]).pin_tab());

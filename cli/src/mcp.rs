@@ -856,6 +856,7 @@ fn tools() -> Vec<Value> {
                 "headed": { "type": "boolean", "description": "Show the browser window. Explicit true/false overrides FROB_HEADED and config; omit to use those defaults." },
                 "webgpu": { "type": "boolean", "description": "Enable WebGPU (SwiftShader software Vulkan on Linux; no GPU required). Explicit true/false overrides FROB_WEBGPU and config; omit to use those defaults." }
                 ,"webmcp": { "type": "boolean", "description": "Enable experimental WebMCP support. Defaults to true for locally launched Chrome; set false to pass --no-webmcp." }
+                ,"sharedBrowser": { "type": "boolean", "description": "Run the session as an isolated context in one Chrome shared with other sessions, which uses about half the memory per session. Headless Chrome on macOS and Linux only; explicit true/false overrides FROB_SHARED_BROWSER and config." }
             }),
             &[],
         ),
@@ -2233,7 +2234,7 @@ fn shared_property(key: &str) -> Value {
     }
 }
 
-const SHARED_ARGUMENTS_INSTRUCTIONS: &str = "Every tool accepts these optional arguments even when its schema does not list them: session (isolated browser session name), restore (true or a key; restores and auto-saves browser state when the call launches the browser), allowedDomains (domain patterns that restrict browser and read traffic when the call launches the browser; also disables RTCPeerConnection in Chromium sessions, and is rejected when the server environment or config already sets allowed domains), capture (set to flow to record the session so flow steps and flow save can turn it into a reusable flow, when the call launches the browser), extraArgs (extra CLI arguments such as --engine; global flags that change network, file, policy, or host access, such as --allowed-domains, --executable-path, --args, and --config, are rejected, so set those in the MCP server environment or config), timeoutMs (positive integer, maximum milliseconds to wait for the tool call), namespace (isolates daemon sockets and restore-state directories), restoreSave (auto, always, or never), restoreCheckUrl, restoreCheckText, and restoreCheckFn (conditions restored state must satisfy), caCert (path to a CA certificate or PEM bundle for the CLI's HTTPS requests and locally launched Chromium on Linux), useSystemCa (boolean, use the OS trust store for the CLI's HTTPS requests), clearCaCert (boolean, clear CA trust retained by the session; cannot be combined with caCert), idleTimeout (such as 30s, 5m, 1h, or milliseconds; defaults to 1h, 0 disables idle shutdown), and relaunch (boolean, relaunch the session's browser even when no setting changed).";
+const SHARED_ARGUMENTS_INSTRUCTIONS: &str = "Every tool accepts these optional arguments even when its schema does not list them: session (isolated browser session name), restore (true or a key; restores and auto-saves browser state when the call launches the browser), allowedDomains (domain patterns that restrict browser and read traffic when the call launches the browser; also disables RTCPeerConnection in Chromium sessions, and is rejected when the server environment or config already sets allowed domains), capture (set to flow to record the session so flow steps and flow save can turn it into a reusable flow, when the call launches the browser), extraArgs (extra CLI arguments such as --engine; global flags that change network, file, policy, or host access, such as --allowed-domains, --executable-path, --args, and --config, are rejected, so set those in the MCP server environment or config), timeoutMs (positive integer, maximum milliseconds to wait for the tool call), namespace (isolates daemon sockets and restore-state directories), restoreSave (auto, always, or never), restoreCheckUrl, restoreCheckText, and restoreCheckFn (conditions restored state must satisfy), caCert (path to a CA certificate or PEM bundle for the CLI's HTTPS requests and locally launched Chromium on Linux), useSystemCa (boolean, use the OS trust store for the CLI's HTTPS requests), clearCaCert (boolean, clear CA trust retained by the session; cannot be combined with caCert), idleTimeout (such as 30s, 5m, 1h, or milliseconds; defaults to 1h, 0 disables idle shutdown), observe (boolean, on page-changing tools: wait for the page to settle and return what the action changed), and relaunch (boolean, relaunch the session's browser even when no setting changed).";
 
 /// Levenshtein distance, for suggesting a close argument name.
 fn edit_distance(a: &str, b: &str) -> usize {
@@ -2745,6 +2746,7 @@ const MCP_EXTRA_ARGS_GLOBALS: &[&str] = &[
     "--headed",
     "--webgpu",
     "--no-webmcp",
+    "--shared-browser",
     "--debug",
     "--hide-scrollbars",
     "--annotate",
@@ -2943,6 +2945,10 @@ fn open_args(arguments: &Value) -> Result<Vec<String>, ProtocolError> {
     if let Some(webmcp) = optional_bool(arguments, "webmcp")? {
         args.push("--no-webmcp".to_string());
         args.push((!webmcp).to_string());
+    }
+    if let Some(shared_browser) = optional_bool(arguments, "sharedBrowser")? {
+        args.push("--shared-browser".to_string());
+        args.push(shared_browser.to_string());
     }
     args.push("open".to_string());
     if let Some(url) = optional_string(arguments, "url")? {
