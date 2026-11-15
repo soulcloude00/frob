@@ -7,6 +7,10 @@ use std::process::{exit, Command, ExitStatus, Stdio};
 const LAST_KNOWN_GOOD_URL: &str =
     "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
 
+/// Directory name prefix, and Chrome for Testing download key, of the headless shell.
+const HEADLESS_SHELL: &str = "chrome-headless-shell";
+const HEADLESS_SHELL_PREFIX: &str = "chrome-headless-shell-";
+
 pub fn get_browsers_dir() -> PathBuf {
     std::env::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -53,7 +57,7 @@ pub fn find_installed_chrome() -> Option<PathBuf> {
             let matches = e
                 .file_name()
                 .to_str()
-                .is_some_and(|n| n.starts_with("chrome-"));
+                .is_some_and(|n| n.starts_with("chrome-") && !n.starts_with(HEADLESS_SHELL_PREFIX));
             if debug {
                 let _ = writeln!(
                     io::stderr(),
@@ -96,6 +100,32 @@ pub fn find_installed_chrome() -> Option<PathBuf> {
         let _ = writeln!(io::stderr(), "[chrome-search] no installed Chrome found");
     }
     None
+}
+
+/// The newest `chrome-headless-shell` downloaded by `frob install --headless-shell`.
+pub fn find_installed_headless_shell() -> Option<PathBuf> {
+    let mut versions: Vec<_> = fs::read_dir(get_browsers_dir())
+        .ok()?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_name()
+                .to_str()
+                .is_some_and(|n| n.starts_with(HEADLESS_SHELL_PREFIX))
+        })
+        .collect();
+    versions.sort_by_key(|b| std::cmp::Reverse(b.file_name()));
+    versions
+        .into_iter()
+        .map(|entry| headless_shell_binary_in_dir(&entry.path()))
+        .find(|bin| bin.exists())
+}
+
+fn headless_shell_binary_in_dir(dir: &Path) -> PathBuf {
+    dir.join(if cfg!(windows) {
+        "chrome-headless-shell.exe"
+    } else {
+        "chrome-headless-shell"
+    })
 }
 
 fn chrome_binary_in_dir(dir: &Path) -> Option<PathBuf> {
@@ -250,7 +280,7 @@ fn check_macos_version() -> Result<(), String> {
     validate_macos_version(version)
 }
 
-async fn fetch_download_url() -> Result<(String, String), String> {
+async fn fetch_download_url(product: &str) -> Result<(String, String), String> {
     #[cfg(target_os = "macos")]
     check_macos_version()?;
 
@@ -281,7 +311,7 @@ async fn fetch_download_url() -> Result<(String, String), String> {
 
     let url = channel
         .get("downloads")
-        .and_then(|d| d.get("chrome"))
+        .and_then(|d| d.get(product))
         .and_then(|c| c.as_array())
         .and_then(|arr| {
             arr.iter().find_map(|entry| {
@@ -468,7 +498,15 @@ fn extract_zip(bytes: Vec<u8>, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub fn run_install(with_deps: bool) {
+/// Installs Chrome for Testing, or with `headless_shell` its headless-only
+/// build, which is about half the size and uses less memory.
+pub fn run_install(with_deps: bool, headless_shell: bool) {
+    let (product, name) = if headless_shell {
+        (HEADLESS_SHELL, "Chrome headless shell")
+    } else {
+        ("chrome", "Chrome")
+    };
+
     if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
         eprintln!(
             "{} Chrome for Testing does not provide Linux ARM64 builds.",
@@ -496,7 +534,7 @@ pub fn run_install(with_deps: bool) {
         }
     }
 
-    println!("{}", color::cyan("Installing Chrome..."));
+    println!("{}", color::cyan(&format!("Installing {}...", name)));
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -510,7 +548,7 @@ pub fn run_install(with_deps: bool) {
             exit(1);
         });
 
-    let (version, url) = match rt.block_on(fetch_download_url()) {
+    let (version, url) = match rt.block_on(fetch_download_url(product)) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("{} {}", color::error_indicator(), e);
@@ -518,20 +556,24 @@ pub fn run_install(with_deps: bool) {
         }
     };
 
-    let dest = get_browsers_dir().join(format!("chrome-{}", version));
+    let dest = get_browsers_dir().join(format!("{}-{}", product, version));
 
-    if let Some(bin) = chrome_binary_in_dir(&dest) {
-        if bin.exists() {
-            println!(
-                "{} Chrome {} is already installed",
-                color::success_indicator(),
-                version
-            );
-            return;
-        }
+    let installed = if headless_shell {
+        Some(headless_shell_binary_in_dir(&dest))
+    } else {
+        chrome_binary_in_dir(&dest)
+    };
+    if installed.is_some_and(|bin| bin.exists()) {
+        println!(
+            "{} {} {} is already installed",
+            color::success_indicator(),
+            name,
+            version
+        );
+        return;
     }
 
-    println!("  Downloading Chrome {} for {}", version, platform_key());
+    println!("  Downloading {} {} for {}", name, version, platform_key());
     println!("  {}", url);
 
     let bytes = match rt.block_on(download_bytes(&url)) {
@@ -545,8 +587,9 @@ pub fn run_install(with_deps: bool) {
     match extract_zip(bytes, &dest) {
         Ok(()) => {
             println!(
-                "{} Chrome {} installed successfully",
+                "{} {} {} installed successfully",
                 color::success_indicator(),
+                name,
                 version
             );
             println!("  Location: {}", dest.display());

@@ -21,6 +21,7 @@ frob install           # download Chrome for Testing (first time only)
 
 - **Homebrew:** `brew install frob`, then `frob install`.
 - **Linux:** `frob install --with-deps` also installs the browser's system libraries.
+- **Smaller footprint:** `frob install --headless-shell` installs the headless-only Chrome build, which is about half the size and uses less memory.
 - **No install:** `npx frob open example.com`.
 
 Project installs, building from source, `upgrade`, and `doctor` are covered in [Installation](https://github.com/soulcloude00/frob/installation).

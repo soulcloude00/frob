@@ -2022,7 +2022,10 @@ fn parity_tools() -> Vec<Value> {
             TOOL_INSTALL,
             "Install",
             "Install browser binaries. On macOS versions below 13, the command stops before downloading Chrome for Testing and prints instructions to update macOS or install Chrome manually. If `sw_vers -productVersion` is unavailable, exits with an error, returns no version, or returns a malformed version, the command reports a detection error and stops before making a network request.",
-            json!({ "withDeps": { "type": "boolean", "description": "Install Linux system dependencies. The package manager runs directly as root; non-root uses sudo." } }),
+            json!({
+                "withDeps": { "type": "boolean", "description": "Install Linux system dependencies. The package manager runs directly as root; non-root uses sudo." },
+                "headlessShell": { "type": "boolean", "description": "Install chrome-headless-shell, the headless-only Chrome build. It is about half the size, uses less memory, and is used for headless sessions without extensions once installed." }
+            }),
             &[],
         ),
         tool(
@@ -4146,6 +4149,9 @@ fn install_args(arguments: &Value) -> Result<Vec<String>, ProtocolError> {
     if optional_bool(arguments, "withDeps")?.unwrap_or(false) {
         args.push("--with-deps".to_string());
     }
+    if optional_bool(arguments, "headlessShell")?.unwrap_or(false) {
+        args.push("--headless-shell".to_string());
+    }
     Ok(args)
 }
 
@@ -5265,6 +5271,14 @@ mod tests {
         assert_eq!(
             install_args(&json!({ "withDeps": true })).unwrap(),
             vec!["install", "--with-deps"]
+        );
+    }
+
+    #[test]
+    fn install_args_maps_headless_shell_to_cli_flag() {
+        assert_eq!(
+            install_args(&json!({ "headlessShell": true })).unwrap(),
+            vec!["install", "--headless-shell"]
         );
     }
 

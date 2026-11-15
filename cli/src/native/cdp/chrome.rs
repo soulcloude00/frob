@@ -860,22 +860,34 @@ fn local_hostname() -> Option<String> {
     Some(name.to_string_lossy().into_owned())
 }
 
+/// The headless shell from `frob install --headless-shell`, for launches
+/// that can use it: it has no window and cannot load extensions.
+fn installed_headless_shell(options: &LaunchOptions) -> Option<PathBuf> {
+    if options.effectively_headless() {
+        crate::install::find_installed_headless_shell()
+    } else {
+        None
+    }
+}
+
 pub fn launch_chrome(options: &LaunchOptions) -> Result<ChromeProcess, String> {
     crate::timing::mark("chrome launch_chrome");
     let chrome_path = match &options.executable_path {
         Some(p) => PathBuf::from(p),
-        None => find_chrome().ok_or_else(|| {
-            let cache_dir = crate::install::get_browsers_dir();
-            format!(
-                "Chrome not found. Checked:\n  \
+        None => installed_headless_shell(options)
+            .or_else(find_chrome)
+            .ok_or_else(|| {
+                let cache_dir = crate::install::get_browsers_dir();
+                format!(
+                    "Chrome not found. Checked:\n  \
                  - frob cache: {}\n  \
                  - System Chrome installations\n  \
                  - Puppeteer browser cache\n  \
                  - Playwright browser cache\n\
                  Run `frob install` to download Chrome, or use --executable-path.",
-                cache_dir.display()
-            )
-        })?,
+                    cache_dir.display()
+                )
+            })?,
     };
 
     #[cfg(unix)]
@@ -2559,6 +2571,21 @@ exec sleep 60
             assert!(disabled_features(&headless.args).contains(feature));
             assert!(!disabled_features(&headed.args).contains(feature));
         }
+    }
+
+    #[test]
+    fn test_headless_shell_is_never_chosen_for_headed_or_extension_launches() {
+        let headed = LaunchOptions {
+            headless: false,
+            ..Default::default()
+        };
+        assert_eq!(installed_headless_shell(&headed), None);
+
+        let with_extension = LaunchOptions {
+            extensions: Some(vec!["/tmp/ext".to_string()]),
+            ..Default::default()
+        };
+        assert_eq!(installed_headless_shell(&with_extension), None);
     }
 
     #[test]

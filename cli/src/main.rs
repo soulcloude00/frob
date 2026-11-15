@@ -1524,7 +1524,8 @@ fn main() {
     // Handle install separately
     if clean.first().map(|s| s.as_str()) == Some("install") {
         let with_deps = args.iter().any(|a| a == "--with-deps" || a == "-d");
-        run_install(with_deps);
+        let headless_shell = args.iter().any(|a| a == "--headless-shell");
+        run_install(with_deps, headless_shell);
         return;
     }
 

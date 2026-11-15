@@ -3728,9 +3728,15 @@ Examples:
             r##"
 frob install - Install browser binaries
 
-Usage: frob install [--with-deps]
+Usage: frob install [--with-deps] [--headless-shell]
 
 Downloads and installs browser binaries required for automation.
+
+With --headless-shell, installs chrome-headless-shell, the headless-only build
+of Chrome for Testing. It is about half the size of Chrome, starts faster, and
+uses less memory. Once installed, headless sessions without extensions use it.
+Headed sessions and sessions with extensions need the full Chrome from
+`frob install`.
 
 On macOS versions below 13, the command stops before downloading Chrome for
 Testing and prints instructions to update macOS or install Chrome manually. If
@@ -3741,10 +3747,12 @@ and stops before making a network request.
 Options:
   -d, --with-deps      Also install Linux system dependencies. The package manager runs
                        directly as root; non-root uses sudo.
+  --headless-shell     Install chrome-headless-shell instead of Chrome
 
 Examples:
   frob install
   frob install --with-deps
+  frob install --headless-shell
 "##
         }
 
@@ -4633,6 +4641,7 @@ Dashboard:
 Setup:
   install                    Install browser binaries
   install --with-deps        Also install system dependencies (Linux)
+  install --headless-shell   Install the smaller headless-only Chrome build
   upgrade                    Upgrade to the latest version
   doctor [--fix]             Diagnose install; auto-clean stale files
   dashboard start            Start the observability dashboard
