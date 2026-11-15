@@ -54,6 +54,7 @@ use super::webmcp;
 
 mod auth_login;
 mod capture;
+mod command_table;
 mod daemon_state;
 mod devtools;
 mod dispatch;
@@ -81,6 +82,7 @@ mod webmcp_tools;
 
 use auth_login::*;
 use capture::*;
+use command_table::*;
 pub use daemon_state::*;
 use devtools::*;
 pub use dispatch::*;
