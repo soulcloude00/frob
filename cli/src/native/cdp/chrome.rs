@@ -57,7 +57,7 @@ pub(crate) struct PreparedNssHome {
 }
 
 impl PreparedNssHome {
-    #[cfg(test)]
+    #[cfg(any(test, target_os = "linux"))]
     fn path(&self) -> &Path {
         &self.inner.path
     }
