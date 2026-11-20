@@ -370,9 +370,9 @@ Iframes are detected automatically during snapshots. `Iframe` nodes are resolved
 
 ```bash
 frob snapshot -i
-# @e3 [Iframe] "payment-frame"
-#   @e4 [input] "Card number"
-#   @e5 [button] "Pay"
+# - Iframe "payment-frame" [ref=e3]
+#   - textbox "Card number" [ref=e4]
+#   - button "Pay" [ref=e5]
 
 # Interact directly using refs — no frame switch needed
 frob fill @e4 "4111111111111111"

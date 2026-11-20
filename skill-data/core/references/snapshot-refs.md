@@ -40,31 +40,54 @@ Compact snapshots (`-c`) keep visible text, status text, and their direct ancest
 
 ### Snapshot Output Format
 
+A full snapshot (`snapshot`):
+
 ```
-Page: Example Site - Home
-URL: https://example.com
-
-@e1 [header]
-  @e2 [nav]
-    @e3 [a] "Home"
-    @e4 [a] "Products"
-    @e5 [a] "About"
-  @e6 [button] "Sign In"
-
-@e7 [main]
-  @e8 [h1] "Welcome"
-  @e9 [form]
-    @e10 [input type="email"] placeholder="Email"
-    @e11 [input type="password"] placeholder="Password"
-    @e12 [button type="submit"] "Log In"
-
-@e13 [footer]
-  @e14 [a] "Privacy Policy"
+- navigation
+  - link "Home" [ref=e1]
+  - link [ref=e2] hint="img:cart"
+    - image
+- main
+  - heading "Orders" [level=1, ref=e3]
+  - paragraph
+    - text "You have 2 open orders. See the"
+    - link "help page" [ref=e5]
+    - text "."
+  - table
+    - row
+      - columnheader "Order" [ref=e7]
+      - columnheader "Total" [ref=e8]
+    - row
+      - cell "Blue mug" [ref=e10]
+      - cell "$12" [ref=e11]
+      - cell [ref=e12] > button "Edit" [ref=e16]
+  - textbox "Email" [ref=e6]
+  - button "Subscribe" [ref=e4]
 ```
+
+The same page with `snapshot -i`, which keeps only elements to act on, plus headings and landmarks:
+
+```
+- link "Home" [ref=e1]
+- link [ref=e2] hint="img:cart"
+- heading "Orders" [level=1, ref=e3]
+- link "help page" [ref=e5]
+- button "Edit" [ref=e16] hint="in:Blue mug $12"
+- button "Edit" [ref=e17] hint="in:Red plate $9"
+- textbox "Email" [ref=e6]
+- button "Subscribe" [ref=e4]
+```
+
+A snapshot prints what an agent needs and leaves out what repeats or carries no meaning:
+
+- Wrappers with no role of their own (unnamed `generic` elements, layout tables, labels, and inline formatting such as `strong` or `code`) give way to their content.
+- Text that the page splits across inline elements is joined into one `text` line. A paragraph reads as text lines between its links.
+- A node whose only content is one run of text shows that text as its name, and a name that only repeats the node's content is printed once.
+- `-i` leaves out table cells and list items. Their refs still exist, so `get text @e10` works, and a full snapshot shows them.
 
 ### Hints for ambiguous controls
 
-A control with an empty accessible name, or a name shared with another ref in the same snapshot, gets a hint read from the DOM after its ref:
+A control with an empty accessible name, or a name shared with another ref in the same snapshot, gets a hint read from the DOM after its ref. `in:` (the text of the surrounding row or list item) appears only in `-i` snapshots, since a full snapshot already prints that text. `id:`, `name:`, and `data-testid:` appear only when the value is made of words, such as `edit-btn`; generated values such as `mwEek` are skipped:
 
 ```
 - link [ref=e1] hint="img:cart"
@@ -125,14 +148,14 @@ A ref keeps pointing at its DOM node while that node exists. If the node was rep
 ```bash
 # Get initial snapshot
 frob snapshot -i
-# @e1 [button] "Next"
+# - button "Next" [ref=e1]
 
 # Click triggers page change
 frob click @e1
 
 # Re-snapshot after navigation to get new refs
 frob snapshot -i
-# @e2 [heading] "Page 2"  ← New element, new ref
+# - heading "Page 2" [level=1, ref=e2]  ← New element, new ref
 ```
 
 ## Best Practices
@@ -172,34 +195,31 @@ For complex pages, snapshot specific areas:
 
 ```bash
 # Snapshot just the form
-frob snapshot @e9
+frob snapshot -s @e9
 ```
 
 ## Ref Notation Details
 
 ```
-@e1 [tag type="value"] "text content" placeholder="hint"
-│    │   │             │               │
-│    │   │             │               └─ Additional attributes
-│    │   │             └─ Visible text
-│    │   └─ Key attributes shown
-│    └─ HTML tag name
-└─ Unique ref ID
+- checkbox "Remember me" [checked=true, ref=e12]
+│ │        │             │
+│ │        │             └─ State attributes, then the ref to act on (@e12)
+│ │        └─ Accessible name: the label, text, or aria-label
+│ └─ ARIA role
+└─ One element per line; indentation shows nesting
 ```
 
 ### Common Patterns
 
 ```
-@e1 [button] "Submit"                    # Button with text
-@e2 [input type="email"]                 # Email input
-@e3 [input type="password"]              # Password input
-@e4 [a href="/page"] "Link Text"         # Anchor link
-@e5 [select]                             # Dropdown
-@e6 [textarea] placeholder="Message"     # Text area
-@e7 [div class="modal"]                  # Container (when relevant)
-@e8 [img alt="Logo"]                     # Image
-@e9 [checkbox] checked                   # Checked checkbox
-@e10 [radio] selected                    # Selected radio
+- button "Submit" [ref=e10]                          # Button with text
+- textbox "Email" [ref=e17]                          # Input, named by its label
+- link "Link Text" [ref=e11]                         # Link
+- combobox "Country" [expanded=false, ref=e19]: Norway   # Select; its value follows the colon
+- checkbox "Remember me" [checked=true, ref=e12]     # Checked checkbox
+- radio "Yearly" [checked=false, ref=e14]            # Unchecked radio
+- button "Delete" [disabled, ref=e16]                # Disabled control
+- generic "Open menu" [ref=e15] clickable [cursor:pointer, onclick]   # Clickable element without a role
 ```
 
 ## Iframes
@@ -210,12 +230,12 @@ Snapshots automatically detect and inline iframe content. When the main-frame sn
 
 ```bash
 frob snapshot -i
-# @e1 [heading] "Checkout"
-# @e2 [Iframe] "payment-frame"
-#   @e3 [input] "Card number"
-#   @e4 [input] "Expiry"
-#   @e5 [button] "Pay"
-# @e6 [button] "Cancel"
+# - heading "Checkout" [level=1, ref=e1]
+# - Iframe "payment-frame" [ref=e2]
+#   - textbox "Card number" [ref=e3]
+#   - textbox "Expiry" [ref=e4]
+#   - button "Pay" [ref=e5]
+# - button "Cancel" [ref=e6]
 
 # Interact with iframe elements directly using their refs
 frob fill @e3 "4111111111111111"

@@ -94,17 +94,13 @@ frob snapshot -i --collapse -s @e406   # open one folded section
 frob snapshot -i --json          # machine-readable
 ```
 
-Snapshot output looks like:
+`snapshot -i` output looks like this. Each line is a role, the accessible name in quotes, and the ref to act on:
 
 ```
-Page: Example - Log in
-URL: https://example.com/login
-
-@e1 [heading] "Log in"
-@e2 [form]
-  @e3 [input type="email"] placeholder="Email"
-  @e4 [input type="password"] placeholder="Password"
-  @e5 [button type="submit"] "Continue"
+- heading "Log in" [level=1, ref=e1]
+- textbox "Email" [ref=e3]
+- textbox "Password" [ref=e4]
+- button "Continue" [ref=e2]
 ```
 
 To read text without refs:

@@ -343,9 +343,9 @@ Iframes are detected automatically during snapshots. When the main-frame snapsho
 
 ```bash
 frob snapshot -i
-# @e3 [Iframe] "payment-frame"
-#   @e4 [input] "Card number"
-#   @e5 [button] "Pay"
+# - Iframe "payment-frame" [ref=e3]
+#   - textbox "Card number" [ref=e4]
+#   - button "Pay" [ref=e5]
 
 # Interact directly — refs inside iframes already work
 frob fill @e4 "4111111111111111"
