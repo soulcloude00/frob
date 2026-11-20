@@ -217,6 +217,7 @@ frob snapshot -s @e9
 - link "Link Text" [ref=e11]                         # Link
 - combobox "Country" [expanded=false, ref=e19]: Norway   # Select; its value follows the colon
 - checkbox "Remember me" [checked=true, ref=e12]     # Checked checkbox
+- button "Annual" [pressed=true, ref=e17]            # Toggle button that is on (aria-pressed)
 - radio "Yearly" [checked=false, ref=e14]            # Unchecked radio
 - button "Delete" [disabled, ref=e16]                # Disabled control
 - generic "Open menu" [ref=e15] clickable [cursor:pointer, onclick]   # Clickable element without a role

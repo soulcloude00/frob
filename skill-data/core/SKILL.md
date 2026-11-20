@@ -33,7 +33,7 @@ frob snapshot -i       # 4. Re-snapshot after any page change
 
 Refs stay valid for elements that survive a same-document update. Take a fresh snapshot after navigation or to observe page changes.
 
-To skip step 4, add `--observe` to the action (`frob --observe click @e3`). The action then waits for the page to settle and prints what changed: elements that appeared (`+`) or went (`-`) with fresh refs, the new page's snapshot after a navigation, and console and page errors. "no visible change on the page" means the action changed nothing you can act on.
+Actions such as `click`, `fill`, and `press` return once the page has settled (up to 1 second), so a `snapshot` chained after them shows the result. To skip step 4, add `--observe` to the action (`frob --observe click @e3`). The action then waits for the page to settle and prints what changed: elements that appeared (`+`) or went (`-`) with fresh refs, the new page's snapshot after a navigation, and console and page errors. "no visible change on the page" means the action changed nothing you can act on.
 
 Prefer snapshots. Take a screenshot only when the user asks for one, or for something the DOM cannot represent, such as a canvas. Never screenshot to check whether an element exists or the page finished loading. If the snapshot is missing an element you expect, the page is usually still loading: wait for it (`wait --text "<text you expect>"` or `wait @eN`, see [Waiting](#waiting)) and snapshot again. A snapshot is faster and uses far fewer tokens.
 

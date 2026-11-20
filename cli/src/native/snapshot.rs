@@ -177,6 +177,7 @@ struct TreeNode {
     selected: Option<bool>,
     disabled: Option<bool>,
     required: Option<bool>,
+    pressed: Option<String>,
     value_text: Option<String>,
     backend_node_id: Option<i64>,
     children: Vec<usize>,
@@ -201,6 +202,7 @@ impl TreeNode {
             selected: None,
             disabled: None,
             required: None,
+            pressed: None,
             value_text: None,
             backend_node_id: None,
             children: Vec::new(),
@@ -223,6 +225,7 @@ impl TreeNode {
         self.selected = None;
         self.disabled = None;
         self.required = None;
+        self.pressed = None;
         self.value_text = None;
         self.backend_node_id = None;
         self.children.clear();
@@ -1161,7 +1164,7 @@ fn build_tree(nodes: &[AXNode]) -> (Vec<TreeNode>, Vec<usize>) {
         let name = extract_ax_string(&node.name);
         let value_text = extract_ax_string_opt(&node.value);
 
-        let (level, checked, expanded, selected, disabled, required) =
+        let (level, checked, expanded, selected, disabled, required, pressed) =
             extract_properties(&node.properties);
 
         if (node.ignored.unwrap_or(false) && role != "RootWebArea") || role == "InlineTextBox" {
@@ -1179,6 +1182,7 @@ fn build_tree(nodes: &[AXNode]) -> (Vec<TreeNode>, Vec<usize>) {
             selected,
             disabled,
             required,
+            pressed,
             value_text,
             backend_node_id: node.backend_d_o_m_node_id,
             children: Vec::new(),
@@ -1553,6 +1557,9 @@ fn render_node_line(
     }
     if let Some(ref checked) = node.checked {
         attrs.push(format!("checked={}", checked));
+    }
+    if let Some(ref pressed) = node.pressed {
+        attrs.push(format!("pressed={}", pressed));
     }
     if let Some(expanded) = node.expanded {
         attrs.push(format!("expanded={}", expanded));
@@ -1930,6 +1937,7 @@ type NodeProperties = (
     Option<bool>,   // selected
     Option<bool>,   // disabled
     Option<bool>,   // required
+    Option<String>, // pressed
 );
 
 fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
@@ -1939,6 +1947,7 @@ fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
     let mut selected = None;
     let mut disabled = None;
     let mut required = None;
+    let mut pressed = None;
 
     if let Some(properties) = props {
         for prop in properties {
@@ -1965,12 +1974,22 @@ fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
                 "required" => {
                     required = prop.value.value.as_ref().and_then(|v| v.as_bool());
                 }
+                // aria-pressed on a toggle button: "true", "false", or "mixed".
+                "pressed" => {
+                    pressed = prop.value.value.as_ref().map(|v| match v {
+                        Value::String(s) => s.clone(),
+                        Value::Bool(b) => b.to_string(),
+                        _ => "false".to_string(),
+                    });
+                }
                 _ => {}
             }
         }
     }
 
-    (level, checked, expanded, selected, disabled, required)
+    (
+        level, checked, expanded, selected, disabled, required, pressed,
+    )
 }
 
 #[cfg(test)]

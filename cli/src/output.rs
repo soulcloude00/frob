@@ -4444,23 +4444,23 @@ Usage: frob <command> [args] [options]
 
 The loop:
   frob open <url>              Open a page (starts the browser)
-  frob snapshot -i             List interactive elements, one per line, each with a ref:
-                                 - button "Sign in" [ref=e3]
-  frob click @e3               Act on a ref
-  frob snapshot -i             Look again after anything changes
+  frob snapshot                The page as text, one element per line, each control with a
+                               ref and its state:  - button "Annual" [pressed=true, ref=e3]
+  frob click @e3               Act on a ref; it returns once the page has settled
+  frob snapshot                Look again: the text shows whether the step worked
 
-Refs survive same-page updates; after a navigation, snapshot again. Add --observe to an
-action to get what changed in the same call: frob --observe click @e3
+Chain steps in one call: frob click @e3 && frob snapshot. Refs survive same-page updates;
+after a navigation, snapshot again. On a long page, snapshot -i lists only the controls.
 
 Act:
   click @e3                    fill @e5 "text"              type @e5 "text"
   press Enter                  check @e7 / uncheck @e7      select @e9 "Option label"
   hover @e3                    scroll down [px]             upload @e4 ./file.pdf
-  back / forward / reload      Chain steps: frob click @e3 && frob snapshot -i
+  back / forward / reload      --observe click @e3: also print what the click changed
 
 Read:
-  snapshot                     Full tree: text and structure, not just controls
-  snapshot @e12 -i             Only what is inside @e12
+  snapshot -i                  Only controls, for long pages
+  snapshot @e12                Only what is inside @e12
   get text @e12                Text of one element (also: value, title, url)
   screenshot [path]            Only for pixels the tree cannot show, such as a canvas
 
