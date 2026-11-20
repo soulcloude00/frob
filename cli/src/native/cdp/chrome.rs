@@ -23,7 +23,9 @@ pub struct ChromeProcess {
     pgid: Option<i32>,
     /// Private Xvfb server auto-started for headed mode on displayless Linux
     /// hosts. Dropped (and killed) after the Chrome tree is torn down.
+    /// Never read: holding it is what keeps Xvfb running until this process is dropped.
     #[cfg(target_os = "linux")]
+    #[allow(dead_code)]
     xvfb: Option<XvfbServer>,
 }
 

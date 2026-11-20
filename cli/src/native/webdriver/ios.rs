@@ -6,6 +6,8 @@ pub struct IosDevice {
     pub name: String,
     pub udid: String,
     pub state: String,
+    /// Read by `to_device_json`, which only macOS (with Xcode) uses.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub runtime: String,
     pub is_real: bool,
 }
@@ -171,6 +173,7 @@ pub fn select_device(device_name: Option<&str>, udid: Option<&str>) -> Result<Io
     Ok((*iphone_devices.last().unwrap()).clone())
 }
 
+#[cfg(any(target_os = "macos", test))]
 pub fn to_device_json(devices: &[IosDevice]) -> Value {
     let list: Vec<Value> = devices
         .iter()
