@@ -110,14 +110,14 @@ Use `@e4` to act on the link and `@e3` for the list item. Set `FROB_SNAPSHOT_MER
 
 ### Collapsing long pages
 
-`snapshot --collapse [n]` keeps the snapshot under `n` lines (default 150). When the page is longer, it folds its biggest sections, largest first, into one line that keeps the section's ref and says how many refs it holds:
+A snapshot longer than 800 lines (`FROB_SNAPSHOT_LINES`) folds its biggest sections, and `snapshot --collapse [n]` sets the budget for one snapshot (150 with no number, 0 to never fold). When the page is longer, it folds its biggest sections, largest first, into one line that keeps the section's ref and says how many refs it holds:
 
 ```
 - region "References" [ref=e406] (collapsed: 829 refs)
-(14 sections collapsed to keep this under 150 lines. Expand one with `snapshot -i --collapse -s @<ref>`.)
+(14 sections collapsed to keep this under 150 lines. Open one with `snapshot @<ref>`.)
 ```
 
-Refs inside a folded section stay valid. To see a section, scope a snapshot to its ref with `-s @e406`, keeping `--collapse` to drill down further. A page within the budget prints unchanged. Flat pages, such as a long list with no sections, cannot be folded and print in full.
+Refs inside a folded section stay valid. To see a section, snapshot its ref: `snapshot @e406`. A section that is itself long folds the same way. A page within the budget prints unchanged. Flat pages, such as a long list with no sections, cannot be folded and print in full.
 
 Hints are on by default in every snapshot mode and also appear in the `snapshot` text of `--json` output. A hint is not the accessible name, so `find role <role> --name` and stale-ref recovery ignore it: act on these elements by ref. Iframe refs never get a hint, and a control with nothing to read prints no hint.
 

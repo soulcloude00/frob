@@ -92,7 +92,7 @@ frob snapshot -i -c              # compact: drop empty structural nodes
 frob snapshot -s "#main"         # scope to a CSS selector
 frob snapshot -i --delta         # full state once, then only changes
 frob snapshot -i --collapse      # long page: fold the biggest sections to stay under 150 lines
-frob snapshot -i --collapse -s @e406   # open one folded section
+frob snapshot @e406              # open one folded section (pages past 800 lines fold on their own)
 frob snapshot -i --json          # machine-readable
 ```
 

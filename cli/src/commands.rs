@@ -1059,10 +1059,8 @@ fn parse_command_inner(
                     }
                     "--collapse" => {
                         // Optional line budget; a following non-number is the next flag.
-                        let budget = rest
-                            .get(i + 1)
-                            .and_then(|n| n.parse::<u64>().ok())
-                            .filter(|&n| n > 0);
+                        // 0 turns folding off, including the default budget.
+                        let budget = rest.get(i + 1).and_then(|n| n.parse::<u64>().ok());
                         if budget.is_some() {
                             i += 1;
                         }
@@ -5515,6 +5513,9 @@ mod tests {
         let cmd = parse_command(&args("snapshot --collapse 80 -i"), &default_flags()).unwrap();
         assert_eq!(cmd["collapse"], 80);
         assert_eq!(cmd["interactive"], true);
+        let cmd = parse_command(&args("snapshot --collapse 0 -i"), &default_flags()).unwrap();
+        assert_eq!(cmd["collapse"], 0);
+        assert!(cmd.get("selector").is_none());
         let cmd = parse_command(&args("snapshot --collapse -s @e5"), &default_flags()).unwrap();
         assert_eq!(cmd["collapse"], DEFAULT_COLLAPSE_LINES);
         assert_eq!(cmd["selector"], "@e5");

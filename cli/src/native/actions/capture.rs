@@ -1,5 +1,25 @@
 use super::*;
 
+/// Snapshots longer than this fold their biggest sections (see `--collapse`), so a long document
+/// costs an agent about 8k tokens instead of 60k. `FROB_SNAPSHOT_LINES` changes it; 0 turns it off.
+const DEFAULT_SNAPSHOT_LINES: usize = 800;
+
+/// The line budget for a snapshot: `collapse` on the command (0 for none), else the default.
+/// Delta snapshots are compared line by line, so they are never folded by default.
+fn snapshot_line_budget(cmd: &Value) -> Option<usize> {
+    if let Some(n) = cmd.get("collapse").and_then(Value::as_u64) {
+        return (n > 0).then_some(n as usize);
+    }
+    if cmd.get("delta").and_then(Value::as_bool).unwrap_or(false) {
+        return None;
+    }
+    let budget = std::env::var("FROB_SNAPSHOT_LINES")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(DEFAULT_SNAPSHOT_LINES);
+    (budget > 0).then_some(budget)
+}
+
 pub(super) async fn handle_snapshot(cmd: &Value, state: &mut DaemonState) -> Result<Value, String> {
     let mgr = state.browser.as_ref().ok_or("Browser not launched")?;
     let session_id = mgr.active_session_id()?.to_string();
@@ -22,10 +42,7 @@ pub(super) async fn handle_snapshot(cmd: &Value, state: &mut DaemonState) -> Res
             .and_then(|v| v.as_u64())
             .map(|d| d as usize),
         urls: cmd.get("urls").and_then(|v| v.as_bool()).unwrap_or(false),
-        collapse: cmd
-            .get("collapse")
-            .and_then(|v| v.as_u64())
-            .map(|n| n as usize),
+        collapse: snapshot_line_budget(cmd),
         scope_object_id: None,
     };
     // A ref selector (`snapshot -s @e5`) is resolved before the refs map is reset below.

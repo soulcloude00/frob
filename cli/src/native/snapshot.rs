@@ -1852,7 +1852,7 @@ fn collapse_sections(tree: &str, budget: usize) -> String {
         out.push('\n');
     }
     out.push_str(&format!(
-        "({count} sections collapsed to keep this under {budget} lines. Expand one with `snapshot -i --collapse -s @<ref>`.)"
+        "({count} sections collapsed to keep this under {budget} lines. Open one with `snapshot @<ref>`.)"
     ));
     out
 }
@@ -2104,7 +2104,9 @@ mod tests {
         assert!(out.contains("- region \"Refs\" [ref=e2] (collapsed: 20 refs)\n"));
         assert!(out.contains("  - link \"i0\" [ref=e40]"));
         assert!(!out.contains("r0"));
-        assert!(out.ends_with("(1 sections collapsed to keep this under 20 lines. Expand one with `snapshot -i --collapse -s @<ref>`.)"));
+        assert!(out.ends_with(
+            "(1 sections collapsed to keep this under 20 lines. Open one with `snapshot @<ref>`.)"
+        ));
         // Within budget: unchanged.
         assert_eq!(collapse_sections(&tree, 100), tree);
     }

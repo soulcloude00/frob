@@ -971,7 +971,7 @@ fn tools() -> Vec<Value> {
                 "includeUrls": { "type": "boolean", "default": false, "description": "Include href URLs on links." },
                 "delta": { "type": "boolean", "default": false, "description": "Return full state once, then unchanged or bounded structural deltas. Apply changes to refs and treeChange (zero-based startLine, deleteCount, lines) to the previous tree." },
                 "full": { "type": "boolean", "default": false, "description": "Force full state while updating the delta baseline." },
-                "collapse": { "type": "integer", "minimum": 1, "description": "Line budget. When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref and the same collapse." }
+                "collapse": { "type": "integer", "minimum": 0, "description": "Line budget (default 800, or FROB_SNAPSHOT_LINES; 0 for none). When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref." }
             }),
             &[],
         ),
@@ -3127,9 +3127,6 @@ fn snapshot_command_args(arguments: &Value) -> Result<Vec<String>, ProtocolError
         args.push("--full".to_string());
     }
     if let Some(budget) = optional_u64(arguments, "collapse")? {
-        if budget == 0 {
-            return Err(ProtocolError::invalid_params("collapse must be at least 1"));
-        }
         args.push("--collapse".to_string());
         args.push(budget.to_string());
     }
@@ -6137,7 +6134,8 @@ mod tests {
         assert_eq!(args, vec!["snapshot", "-i", "--collapse", "80"]);
         let cmd = crate::commands::parse_command(&args, &crate::flags::parse_flags(&[])).unwrap();
         assert_eq!(cmd["collapse"], 80);
-        assert!(snapshot_command_args(&json!({ "collapse": 0 })).is_err());
+        let args = snapshot_command_args(&json!({ "collapse": 0 })).unwrap();
+        assert_eq!(args, vec!["snapshot", "-i", "--collapse", "0"]);
     }
 
     #[test]

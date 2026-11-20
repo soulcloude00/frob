@@ -2763,8 +2763,10 @@ Options:
       --delta          Return full state once, then unchanged or structural deltas
                        Deltas include ref changes and an exact treeChange line splice
       --full           Force full state and update the delta baseline
-      --collapse [n]   Keep the snapshot under n lines (default 150) by folding its
-                       biggest sections into one line each; expand one with -s @ref
+      --collapse [n]   Keep the snapshot under n lines by folding its biggest sections
+                       into one line each; open one with snapshot @ref. Snapshots fold
+                       past 800 lines (FROB_SNAPSHOT_LINES) without it; --collapse with
+                       no number uses 150, and --collapse 0 never folds
 
 Compact snapshots keep visible text, status text, and their direct ancestors.
 Empty sibling branches are removed. Interactive snapshots filter out noninteractive content. MCP snapshots default to interactive; set
@@ -2781,9 +2783,9 @@ its own is printed on that element's line, with both refs:
 Set FROB_SNAPSHOT_MERGE=0 to print them on separate lines.
 
 Collapsed sections:
-With --collapse, a long snapshot folds its biggest sections, largest first:
+A snapshot past its line budget folds its biggest sections, largest first:
   - region "References" [ref=e406] (collapsed: 829 refs)
-The refs inside stay valid. Run snapshot -i --collapse -s @e406 to open one.
+The refs inside stay valid. Run snapshot @e406 to open one.
 
 Global Options:
   --json               Output as JSON
@@ -2799,6 +2801,7 @@ Examples:
   frob snapshot --delta --full
   frob snapshot -i --collapse
   frob snapshot -i --collapse 80 -s @e406
+  frob snapshot --collapse 0       # never fold
 "##
         }
 
@@ -4450,7 +4453,8 @@ The loop:
   frob snapshot                Look again: the text shows whether the step worked
 
 Chain steps in one call: frob click @e3 && frob snapshot. Refs survive same-page updates;
-after a navigation, snapshot again. On a long page, snapshot -i lists only the controls.
+after a navigation, snapshot again. A long page folds its biggest sections into one line
+each, such as - region "History" [ref=e14] (collapsed: 150 refs); snapshot @e14 opens one.
 
 Act:
   click @e3                    fill @e5 "text"              type @e5 "text"
@@ -4891,6 +4895,8 @@ Environment:
   FROB_AUTO_CONNECT     Auto-discover and connect to running Chrome
   FROB_PIN_TAB          Pin the session to its bound tab (strict tab binding)
   FROB_OBSERVE          Observe every page-changing action (see --observe); read by the daemon
+  FROB_SNAPSHOT_LINES   Line budget past which snapshots fold their biggest sections
+                        (default 800; 0 never folds); read by the daemon
   FROB_SETTLE           0 to return from click, fill, press, and similar actions without
                         waiting up to 1 s for the page to settle; read by the daemon
   FROB_SNAPSHOT_MERGE   Set to 0 to print wrapper lines separately in snapshots

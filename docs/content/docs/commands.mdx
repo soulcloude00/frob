@@ -361,10 +361,11 @@ Set `FROB_SNAPSHOT_MERGE=0` to print them on separate lines.
 ```bash
 frob snapshot -i --collapse
 frob snapshot -i --collapse 80
-frob snapshot -i --collapse -s @e406
+frob snapshot @e406              # open a folded section
+frob snapshot --collapse 0       # never fold
 ```
 
-`--collapse [n]` keeps a snapshot under `n` lines (default 150) by folding its biggest sections, largest first, into one line that keeps the section's ref and counts the refs inside, such as `- region "References" [ref=e406] (collapsed: 829 refs)`. The refs inside stay valid. Scope a snapshot to a folded section's ref with `-s` to open it, keeping `--collapse` to drill down further. A page within the budget prints unchanged, and flat pages with no sections print in full. In MCP, set `collapse` on `frob_snapshot` to the line budget.
+A snapshot longer than 800 lines folds its biggest sections, largest first, into one line that keeps the section's ref and counts the refs inside, such as `- region "References" [ref=e406] (collapsed: 829 refs)`. `FROB_SNAPSHOT_LINES` changes that budget for the daemon, and `--collapse [n]` sets it for one snapshot (150 with no number, 0 to never fold). The refs inside stay valid. Snapshot a folded section's ref, `snapshot @e406`, to open it; a long section folds the same way. A page within the budget prints unchanged, and flat pages with no sections print in full. In MCP, set `collapse` on `frob_snapshot` to the line budget.
 
 ### Iframe support
 

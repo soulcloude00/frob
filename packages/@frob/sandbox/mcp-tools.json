@@ -3813,8 +3813,8 @@
       "inputSchema": {
         "properties": {
           "collapse": {
-            "description": "Line budget. When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref and the same collapse.",
-            "minimum": 1,
+            "description": "Line budget (default 800, or FROB_SNAPSHOT_LINES; 0 for none). When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref.",
+            "minimum": 0,
             "type": "integer"
           },
           "compact": {
