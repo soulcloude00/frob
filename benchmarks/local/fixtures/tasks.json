@@ -2,7 +2,7 @@
   {
     "id": "login-validation",
     "start_path": "/t/login-validation/",
-    "goal": "Sign in to the Acme Console with the email maria.chen@acme.test and the password harbor-42. You are done when you reach the signed-in dashboard.",
+    "goal": "Sign in to the Acme Console with the email maria.chen@acme.test and the password harbor-42. If the site asks you to accept updated terms, accept them; I have reviewed them. You are done when you reach the signed-in dashboard.",
     "check": { "type": "state" }
   },
   {
