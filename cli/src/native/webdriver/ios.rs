@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -178,7 +178,7 @@ pub fn to_device_json(devices: &[IosDevice]) -> Value {
     let list: Vec<Value> = devices
         .iter()
         .map(|d| {
-            json!({
+            serde_json::json!({
                 "name": d.name,
                 "udid": d.udid,
                 "state": d.state,
@@ -187,7 +187,7 @@ pub fn to_device_json(devices: &[IosDevice]) -> Value {
             })
         })
         .collect();
-    json!({ "devices": list })
+    serde_json::json!({ "devices": list })
 }
 
 #[cfg(test)]
