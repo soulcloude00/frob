@@ -1,0 +1,12 @@
+{
+  "name": "frob-local-benchmarks",
+  "private": true,
+  "type": "module",
+  "description": "Local, no-cloud benchmarks: frob against agent-browser and Playwright MCP",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.24.3",
+    "@playwright/mcp": "0.0.86",
+    "agent-browser": "0.43.0",
+    "gpt-tokenizer": "3.4.0"
+  }
+}

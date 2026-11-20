@@ -1,0 +1,122 @@
+[
+  {
+    "id": "login-validation",
+    "start_path": "/t/login-validation/",
+    "goal": "Sign in to the Acme Console with the email maria.chen@acme.test and the password harbor-42. You are done when you reach the signed-in dashboard.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "checkout-wizard",
+    "start_path": "/t/checkout-wizard/",
+    "goal": "Check out the items already in my cart. Ship to Jonas Weber, 742 Evergreen Terrace, Springfield, Oregon, ZIP 97477, with Express shipping. Pay with card number 4242 4242 4242 4242, expiry 08/29, security code 314. Place the order (once).",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "cookie-consent",
+    "start_path": "/t/cookie-consent/",
+    "goal": "On the Relay pricing page, start a subscription to the Team plan with annual billing.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "newsletter-popup",
+    "start_path": "/t/newsletter-popup/",
+    "goal": "Send a support request with the subject \"Invoice shows wrong VAT number\", category Billing and invoices, priority High, and the message \"Our March invoice lists the wrong VAT number. Please correct the VAT number to DE298374651.\" Do not sign up for anything else.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "combobox",
+    "start_path": "/t/combobox/",
+    "goal": "Change the country on my profile to New Zealand and save the profile. Leave the other fields as they are.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "datepicker",
+    "start_path": "/t/datepicker/",
+    "goal": "Book a consultation for Thursday, May 14, 2026 at 3:30 PM for Ava Patel, email ava.patel@example.com.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "iframe-form",
+    "start_path": "/t/iframe-form/",
+    "goal": "Update the account's billing details: set the billing email to ap@northwind.example and the VAT ID to GB123456789, then save them. Do not change the profile.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "shadow-dom",
+    "start_path": "/t/shadow-dom/",
+    "goal": "Redeem the gift card with code GIFT-7Q2M-K9XD on my shopping bag. Don't proceed to checkout.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "table-pagination",
+    "start_path": "/t/table-pagination/",
+    "goal": "In the people directory, sort employees by salary from highest to lowest and go to page 3 (10 people per page). Who is the 4th person listed on that page? Reply with their employee ID (format E-####).",
+    "check": { "type": "answer", "pattern": "\\bE-1032\\b" }
+  },
+  {
+    "id": "product-filter",
+    "start_path": "/t/product-filter/",
+    "goal": "Add the cheapest product from the Headphones category that is wireless, has noise cancelling (ANC), and is rated 4.5 stars or higher to my cart. When you're done the cart should contain only that one item.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "infinite-scroll",
+    "start_path": "/t/infinite-scroll/",
+    "goal": "In my Chirpline home feed, like Priya Raman's post announcing that her pottery studio opens this Saturday. Don't like any other posts.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "kanban",
+    "start_path": "/t/kanban/",
+    "goal": "On the Sprint 14 board, move the card \"Migrate billing webhooks\" to the Review column and the card \"Update onboarding copy\" to the Done column. Leave every other card where it is.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "settings-toggles",
+    "start_path": "/t/settings-toggles/",
+    "goal": "In my notification settings, turn on the Weekly digest email, turn off Product announcements emails, and turn on push notifications for Mentions. Keep everything else unchanged and save.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "delete-dialog",
+    "start_path": "/t/delete-dialog/",
+    "goal": "Revoke the API key named exactly \"staging-ci\". Keep all other keys.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "tabs-accordion",
+    "start_path": "/t/tabs-accordion/",
+    "goal": "In the web-frontend project settings, change the webhook retry limit to 7 and the webhook timeout to 25 seconds, and save.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "icon-buttons",
+    "start_path": "/t/icon-buttons/",
+    "goal": "Change the workspace role of Jordan Leigh (jordan.leigh@acme.test) to Admin. Don't change or remove anyone else.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "autocomplete-search",
+    "start_path": "/t/autocomplete-search/",
+    "goal": "On pkghub, star the package named exactly \"tiny-date-fns\". Don't star anything else.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "radio-cards",
+    "start_path": "/t/radio-cards/",
+    "goal": "Create a workspace named \"Helix Labs\" on the Growth plan with annual billing, data stored in the EU Central (Frankfurt) region, and Priority support.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "spa-route",
+    "start_path": "/t/spa-route/",
+    "goal": "In the billing portal, mark invoice INV-2043 as paid with the payment method Bank transfer. Don't change any other invoice.",
+    "check": { "type": "state" }
+  },
+  {
+    "id": "split-text-answer",
+    "start_path": "/t/split-text-answer/",
+    "goal": "Look at this order. What is its order number, and what is the total weight (quantity times unit weight) of all items shipping from the Denver warehouse? Reply with the order number and the weight in kg, in the form: ORD-00000, 0.0 kg",
+    "check": { "type": "answer", "pattern": "ORD-58317[\\s\\S]*?\\b14\\.60?\\s*kg" }
+  }
+]
