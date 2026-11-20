@@ -44,7 +44,8 @@ use connection::{
 use flags::{clean_args, parse_flags, Flags};
 use install::run_install;
 use output::{
-    print_command_help, print_help, print_response_with_opts, print_version, OutputOptions,
+    print_command_help, print_full_help, print_help, print_response_with_opts, print_version,
+    OutputOptions,
 };
 use session_settings::parse_proxy;
 use upgrade::run_upgrade;
@@ -1498,7 +1499,11 @@ fn main() {
     if has_help {
         clean.retain(|arg| arg != "--help" && arg != "-h");
         if clean.is_empty() || clean.iter().all(|arg| arg.starts_with('-')) {
-            print_help();
+            if clean.iter().any(|arg| arg == "--all") {
+                print_full_help();
+            } else {
+                print_help();
+            }
             return;
         }
         if let Some(cmd) = clean.first() {

@@ -4433,7 +4433,50 @@ Examples:
     true
 }
 
+/// `frob --help`: enough to drive a page with no other reading. Agents that have never seen
+/// frob start here, and whatever they read stays in their context for every later turn, so
+/// this stays short. `frob --help --all` prints every command and option.
 pub fn print_help() {
+    println!(
+        r#"frob - browser automation for AI agents
+
+Usage: frob <command> [args] [options]
+
+The loop:
+  frob open <url>              Open a page (starts the browser)
+  frob snapshot -i             List interactive elements, one per line, each with a ref:
+                                 - button "Sign in" [ref=e3]
+  frob click @e3               Act on a ref
+  frob snapshot -i             Look again after anything changes
+
+Refs survive same-page updates; after a navigation, snapshot again. Add --observe to an
+action to get what changed in the same call: frob --observe click @e3
+
+Act:
+  click @e3                    fill @e5 "text"              type @e5 "text"
+  press Enter                  check @e7 / uncheck @e7      select @e9 "Option label"
+  hover @e3                    scroll down [px]             upload @e4 ./file.pdf
+  back / forward / reload      Chain steps: frob click @e3 && frob snapshot -i
+
+Read:
+  snapshot                     Full tree: text and structure, not just controls
+  snapshot @e12 -i             Only what is inside @e12
+  get text @e12                Text of one element (also: value, title, url)
+  screenshot [path]            Only for pixels the tree cannot show, such as a canvas
+
+Wait (when the element you expect is missing, the page is usually still loading):
+  wait --text "Saved"          wait @e5          wait --load networkidle          wait 500
+
+Find without a snapshot:
+  find role button click --name "Submit"         find label "Email" fill "a@b.co"
+
+Other: tab list | tab new <url> | tab t2, eval <js>, batch "cmd" "cmd", close.
+Sessions: FROB_SESSION or --session <name> gives you your own browser.
+More: frob <command> --help, frob --help --all, frob skills get core"#
+    );
+}
+
+pub fn print_full_help() {
     println!(
         r#"
 frob - fast browser automation CLI for AI agents

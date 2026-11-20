@@ -82,7 +82,7 @@ For MCP clients, `frob mcp` starts an MCP server over stdio. See [MCP server](ht
 
 ## Commands
 
-Run `frob --help` for the full list, or `frob <command> --help` for one command.
+Run `frob --help` for a short primer, `frob --help --all` for the full list, or `frob <command> --help` for one command.
 
 | Group | Commands | Docs |
 |---|---|---|

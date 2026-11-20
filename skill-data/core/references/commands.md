@@ -582,7 +582,8 @@ frob --restore-save <policy> # auto (default), always, or never
 frob --namespace <name> ...  # Isolate daemon sockets and restore-state directories
 frob --idle-timeout <time>   # Daemon idle shutdown (default 1h; 0 disables)
 frob --relaunch ...          # Relaunch the browser even when no setting changed; once per batch
-frob --help                  # Show help (-h)
+frob --help                  # Short primer (-h)
+frob --help --all            # Every command and option
 frob --version               # Show version (-V)
 frob <command> --help        # Show detailed help for a command
 ```
