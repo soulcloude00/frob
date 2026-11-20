@@ -1192,6 +1192,12 @@ pub(super) async fn execute_command_inner(cmd: &Value, state: &mut DaemonState) 
     } else {
         None
     };
+    // Unobserved actions still wait for the page to settle, so the next command sees the result.
+    let settle =
+        observe_before.is_none() && observe::settle_wanted(cmd, action) && state.browser.is_some();
+    if settle {
+        observe::arm(state).await;
+    }
 
     let mut result = match action {
         "launch" => {
@@ -1222,6 +1228,10 @@ pub(super) async fn execute_command_inner(cmd: &Value, state: &mut DaemonState) 
         }
         _ => run_command(action, cmd, state).await,
     };
+
+    if settle && result.is_ok() {
+        observe::settle_after(state).await;
+    }
 
     if let Some(before) = observe_before {
         if result.is_ok() {

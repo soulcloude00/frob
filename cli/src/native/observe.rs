@@ -187,7 +187,7 @@ pub async fn before(state: &mut DaemonState, action: &str) -> Before {
 /// Waits for the page to settle after the action and describes what changed.
 pub async fn after(state: &mut DaemonState, before: Before) -> Value {
     let start = Instant::now();
-    settle(state, start).await;
+    settle(state, start, SETTLE_CAP).await;
     let last = snap(state).await.ok();
     if let Some(mgr) = state.browser.as_ref() {
         let _ = mgr.evaluate(DISARM_JS, None).await;
@@ -254,14 +254,68 @@ pub async fn after(state: &mut DaemonState, before: Before) -> Value {
     obs
 }
 
+/// Actions that settle by default, without `--observe`: the ones whose effect commonly arrives
+/// after they return (a fetch, a debounced handler, a render), so a snapshot chained right after
+/// them would otherwise show the page mid-update and cost the agent another look.
+const SETTLED: &[&str] = &[
+    "click",
+    "dblclick",
+    "tap",
+    "fill",
+    "type",
+    "inserttext",
+    "press",
+    "keyboard",
+    "select",
+    "multiselect",
+    "check",
+    "uncheck",
+    "scroll",
+    "scrollintoview",
+    "upload",
+    "drag",
+    "find",
+    "nth",
+];
+/// A plain action waits at most this long: a page that never stops changing costs little.
+const DEFAULT_SETTLE_CAP: Duration = Duration::from_millis(1000);
+
+/// Whether an unobserved action waits for the page to settle before returning. On by default;
+/// `FROB_SETTLE=0` or `"settle": false` on the command turns it off.
+pub fn settle_wanted(cmd: &Value, action: &str) -> bool {
+    if !SETTLED.contains(&action) {
+        return false;
+    }
+    match cmd.get("settle").and_then(Value::as_bool) {
+        Some(on) => on,
+        None => !std::env::var("FROB_SETTLE")
+            .is_ok_and(|v| matches!(v.as_str(), "0" | "false" | "no" | "off")),
+    }
+}
+
+/// Starts tracking the page before an action that will settle.
+pub async fn arm(state: &DaemonState) {
+    if let Some(mgr) = state.browser.as_ref() {
+        let _ = mgr.evaluate(ARM_JS, None).await;
+    }
+}
+
+/// Waits for the page to settle after an action armed with [`arm`], then stops tracking.
+pub async fn settle_after(state: &DaemonState) {
+    settle(state, Instant::now(), DEFAULT_SETTLE_CAP).await;
+    if let Some(mgr) = state.browser.as_ref() {
+        let _ = mgr.evaluate(DISARM_JS, None).await;
+    }
+}
+
 /// Waits until the page is quiet: no DOM change for `QUIET_MS` and nothing the action started
-/// still pending, or until `SETTLE_CAP`. A new document (the action navigated) gets the tracker
-/// once it is parsed, then the same rule.
-async fn settle(state: &DaemonState, start: Instant) {
+/// still pending, or until `cap`. A new document (the action navigated) gets the tracker once it
+/// is parsed, then the same rule.
+async fn settle(state: &DaemonState, start: Instant, cap: Duration) {
     let Some(mgr) = state.browser.as_ref() else {
         return;
     };
-    while start.elapsed() < SETTLE_CAP {
+    while start.elapsed() < cap {
         tokio::time::sleep(POLL).await;
         let Ok(status) = mgr.evaluate(STATUS_JS, None).await else {
             continue; // the old document is going away

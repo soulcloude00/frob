@@ -4891,6 +4891,8 @@ Environment:
   FROB_AUTO_CONNECT     Auto-discover and connect to running Chrome
   FROB_PIN_TAB          Pin the session to its bound tab (strict tab binding)
   FROB_OBSERVE          Observe every page-changing action (see --observe); read by the daemon
+  FROB_SETTLE           0 to return from click, fill, press, and similar actions without
+                        waiting up to 1 s for the page to settle; read by the daemon
   FROB_SNAPSHOT_MERGE   Set to 0 to print wrapper lines separately in snapshots
   FROB_TIMING           File to append phase timings to, from the CLI and the daemon
   FROB_ALLOW_FILE_ACCESS Allow file:// URLs to access local files
