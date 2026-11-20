@@ -17,6 +17,7 @@ frob snapshot -i                 # Interactive elements only (recommended)
 frob snapshot -c                 # Compact (remove empty elements)
 frob snapshot -d 3               # Limit depth to 3 levels
 frob snapshot -s "#main"         # Scope to CSS selector
+frob snapshot @e9 -i             # Scope to a ref from an earlier snapshot
 frob snapshot -i -c -d 5         # Combine options
 ```
 
@@ -29,7 +30,7 @@ frob snapshot -i -c -d 5         # Combine options
     <tr><td><code>-u, --urls</code></td><td>Include href URLs for link elements</td></tr>
     <tr><td><code>-c, --compact</code></td><td>Remove empty structural elements</td></tr>
     <tr><td><code>-d, --depth</code></td><td>Limit tree depth</td></tr>
-    <tr><td><code>-s, --selector</code></td><td>Scope to CSS selector</td></tr>
+    <tr><td><code>-s, --selector</code></td><td>Scope to a CSS selector or ref. A bare argument such as <code>@e9</code> does the same</td></tr>
   </tbody>
 </table>
 

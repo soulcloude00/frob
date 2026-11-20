@@ -2759,7 +2759,7 @@ Options:
   -u, --urls           Include href URLs for link elements
   -c, --compact        Remove empty structural elements
   -d, --depth <n>      Limit tree depth
-  -s, --selector <sel> Scope snapshot to CSS selector
+  -s, --selector <sel> Scope snapshot to a CSS selector or @ref; `snapshot @e9` also works
       --delta          Return full state once, then unchanged or structural deltas
                        Deltas include ref changes and an exact treeChange line splice
       --full           Force full state and update the delta baseline
@@ -4651,7 +4651,7 @@ Snapshot Options:
   -i, --interactive          Only interactive elements
   -c, --compact              Remove empty structural elements
   -d, --depth <n>            Limit tree depth
-  -s, --selector <sel>       Scope to CSS selector
+  -s, --selector <sel>       Scope to a CSS selector or @ref (or pass it bare)
 
 Authentication:
   --profile <name|path>      Chrome profile name (e.g., Default) to reuse login state,

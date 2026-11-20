@@ -1044,6 +1044,12 @@ fn parse_command_inner(
                     }
                     "-s" | "--selector" => {
                         if let Some(s) = rest.get(i + 1) {
+                            if obj.contains_key("selector") {
+                                return Err(ParseError::InvalidValue {
+                                    message: format!("snapshot takes one scope; got a second: {s}"),
+                                    usage: "snapshot [@ref | -s <selector>] [-i] [-c] [-d <n>]",
+                                });
+                            }
                             obj.insert("selector".to_string(), json!(s));
                             i += 1;
                         }
@@ -1068,6 +1074,16 @@ fn parse_command_inner(
                     "--full" => {
                         obj.insert("full".to_string(), json!(true));
                         obj.insert("delta".to_string(), json!(true));
+                    }
+                    // `snapshot @e9` or `snapshot "#main"` scopes like `-s`; agents write it that way.
+                    scope if !scope.starts_with('-') => {
+                        if obj.contains_key("selector") {
+                            return Err(ParseError::InvalidValue {
+                                message: format!("snapshot takes one scope; got a second: {scope}"),
+                                usage: "snapshot [@ref | -s <selector>] [-i] [-c] [-d <n>]",
+                            });
+                        }
+                        obj.insert("selector".to_string(), json!(scope));
                     }
                     _ => reject_batch_global_flag(batch_item, rest[i])?,
                 }
@@ -5502,6 +5518,17 @@ mod tests {
         let cmd = parse_command(&args("snapshot --collapse -s @e5"), &default_flags()).unwrap();
         assert_eq!(cmd["collapse"], DEFAULT_COLLAPSE_LINES);
         assert_eq!(cmd["selector"], "@e5");
+    }
+
+    #[test]
+    fn test_snapshot_positional_scope() {
+        let cmd = parse_command(&args("snapshot @e9 -i"), &default_flags()).unwrap();
+        assert_eq!(cmd["selector"], "@e9");
+        assert_eq!(cmd["interactive"], true);
+        let cmd = parse_command(&args("snapshot -i #main"), &default_flags()).unwrap();
+        assert_eq!(cmd["selector"], "#main");
+        assert!(parse_command(&args("snapshot @e9 -s @e3"), &default_flags()).is_err());
+        assert!(parse_command(&args("snapshot @e9 @e3"), &default_flags()).is_err());
     }
 
     #[test]

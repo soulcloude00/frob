@@ -65,6 +65,7 @@ frob snapshot -i         # Interactive elements only (recommended)
 frob snapshot -c         # Compact output
 frob snapshot -d 3       # Limit depth to 3
 frob snapshot -s "#main" # Scope to CSS selector
+frob snapshot @e9 -i     # Scope to a ref (same as -s @e9)
 frob snapshot --delta     # Full state once, then bounded structural deltas
 frob snapshot --delta --full # Force full state and refresh baseline
 ```
