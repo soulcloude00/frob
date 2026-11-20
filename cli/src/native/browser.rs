@@ -829,6 +829,7 @@ impl BrowserManager {
         let download_path = options.download_path.clone();
 
         // The Chrome is launched the same way whichever session comes first.
+        #[cfg(unix)]
         let shared_options = LaunchOptions {
             shared_browser: true,
             ..Default::default()

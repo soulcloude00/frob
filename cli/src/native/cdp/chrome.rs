@@ -1059,8 +1059,8 @@ fn try_launch_chrome(chrome_path: &Path, options: &LaunchOptions) -> Result<Chro
         }
     }
 
-    #[cfg(not(windows))]
     crate::timing::mark("chrome spawn");
+    #[cfg(not(windows))]
     let spawned = cmd.spawn();
     #[cfg(windows)]
     let spawned = Child::spawn(chrome_path, &args, options.effectively_headless());
