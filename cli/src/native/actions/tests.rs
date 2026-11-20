@@ -6195,7 +6195,9 @@ async fn test_navigate_without_browser() {
 #[tokio::test]
 #[allow(clippy::await_holding_lock)]
 async fn test_credentials_roundtrip_via_actions() {
-    let _lock = crate::native::auth::AUTH_TEST_MUTEX.lock().unwrap();
+    let _lock = crate::native::auth::AUTH_TEST_MUTEX
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let key_var = "FROB_ENCRYPTION_KEY";
     let original = std::env::var(key_var).ok();
     // SAFETY: AUTH_TEST_MUTEX serializes all test access so no concurrent mutation.
