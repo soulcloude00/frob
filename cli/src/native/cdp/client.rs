@@ -862,12 +862,6 @@ impl CdpClient {
             .remove(session_id);
     }
 
-    /// Subscribe to all raw incoming CDP messages (responses + events).
-    /// Used by the inspect proxy to forward traffic to the DevTools frontend.
-    pub fn subscribe_raw(&self) -> broadcast::Receiver<RawCdpMessage> {
-        self.raw_tx.subscribe()
-    }
-
     /// Create a lightweight handle for the inspect WebSocket proxy.
     /// Contains only what's needed to forward messages bidirectionally.
     pub fn inspect_handle(&self) -> InspectProxyHandle {
@@ -1026,6 +1020,7 @@ impl CdpClient {
             .map_err(|e| format!("Failed to send CDP command: {}", e))
     }
 
+    #[cfg(test)]
     /// Send raw JSON through the WebSocket without tracking a response.
     /// Used by the inspect proxy to forward DevTools frontend messages.
     pub async fn send_raw(&self, json: String) -> Result<(), String> {

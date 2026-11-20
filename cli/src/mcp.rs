@@ -856,6 +856,7 @@ fn tools() -> Vec<Value> {
                 "headed": { "type": "boolean", "description": "Show the browser window. Explicit true/false overrides FROB_HEADED and config; omit to use those defaults." },
                 "webgpu": { "type": "boolean", "description": "Enable WebGPU (SwiftShader software Vulkan on Linux; no GPU required). Explicit true/false overrides FROB_WEBGPU and config; omit to use those defaults." }
                 ,"webmcp": { "type": "boolean", "description": "Enable experimental WebMCP support. Defaults to true for locally launched Chrome; set false to pass --no-webmcp." }
+                ,"sharedBrowser": { "type": "boolean", "description": "Run the session as an isolated context in one Chrome shared with other sessions, which uses about half the memory per session. Headless Chrome on macOS and Linux only; explicit true/false overrides FROB_SHARED_BROWSER and config." }
             }),
             &[],
         ),
@@ -970,7 +971,7 @@ fn tools() -> Vec<Value> {
                 "includeUrls": { "type": "boolean", "default": false, "description": "Include href URLs on links." },
                 "delta": { "type": "boolean", "default": false, "description": "Return full state once, then unchanged or bounded structural deltas. Apply changes to refs and treeChange (zero-based startLine, deleteCount, lines) to the previous tree." },
                 "full": { "type": "boolean", "default": false, "description": "Force full state while updating the delta baseline." },
-                "collapse": { "type": "integer", "minimum": 1, "description": "Line budget. When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref and the same collapse." }
+                "collapse": { "type": "integer", "minimum": 0, "description": "Line budget (default 800, or FROB_SNAPSHOT_LINES; 0 for none). When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref." }
             }),
             &[],
         ),
@@ -2022,7 +2023,10 @@ fn parity_tools() -> Vec<Value> {
             TOOL_INSTALL,
             "Install",
             "Install browser binaries. On macOS versions below 13, the command stops before downloading Chrome for Testing and prints instructions to update macOS or install Chrome manually. If `sw_vers -productVersion` is unavailable, exits with an error, returns no version, or returns a malformed version, the command reports a detection error and stops before making a network request.",
-            json!({ "withDeps": { "type": "boolean", "description": "Install Linux system dependencies. The package manager runs directly as root; non-root uses sudo." } }),
+            json!({
+                "withDeps": { "type": "boolean", "description": "Install Linux system dependencies. The package manager runs directly as root; non-root uses sudo." },
+                "headlessShell": { "type": "boolean", "description": "Install chrome-headless-shell, the headless-only Chrome build. It is about half the size, uses less memory, and is used for headless sessions without extensions once installed." }
+            }),
             &[],
         ),
         tool(
@@ -2230,7 +2234,7 @@ fn shared_property(key: &str) -> Value {
     }
 }
 
-const SHARED_ARGUMENTS_INSTRUCTIONS: &str = "Every tool accepts these optional arguments even when its schema does not list them: session (isolated browser session name), restore (true or a key; restores and auto-saves browser state when the call launches the browser), allowedDomains (domain patterns that restrict browser and read traffic when the call launches the browser; also disables RTCPeerConnection in Chromium sessions, and is rejected when the server environment or config already sets allowed domains), capture (set to flow to record the session so flow steps and flow save can turn it into a reusable flow, when the call launches the browser), extraArgs (extra CLI arguments such as --engine; global flags that change network, file, policy, or host access, such as --allowed-domains, --executable-path, --args, and --config, are rejected, so set those in the MCP server environment or config), timeoutMs (positive integer, maximum milliseconds to wait for the tool call), namespace (isolates daemon sockets and restore-state directories), restoreSave (auto, always, or never), restoreCheckUrl, restoreCheckText, and restoreCheckFn (conditions restored state must satisfy), caCert (path to a CA certificate or PEM bundle for the CLI's HTTPS requests and locally launched Chromium on Linux), useSystemCa (boolean, use the OS trust store for the CLI's HTTPS requests), clearCaCert (boolean, clear CA trust retained by the session; cannot be combined with caCert), idleTimeout (such as 30s, 5m, 1h, or milliseconds; defaults to 1h, 0 disables idle shutdown), and relaunch (boolean, relaunch the session's browser even when no setting changed).";
+const SHARED_ARGUMENTS_INSTRUCTIONS: &str = "Every tool accepts these optional arguments even when its schema does not list them: session (isolated browser session name), restore (true or a key; restores and auto-saves browser state when the call launches the browser), allowedDomains (domain patterns that restrict browser and read traffic when the call launches the browser; also disables RTCPeerConnection in Chromium sessions, and is rejected when the server environment or config already sets allowed domains), capture (set to flow to record the session so flow steps and flow save can turn it into a reusable flow, when the call launches the browser), extraArgs (extra CLI arguments such as --engine; global flags that change network, file, policy, or host access, such as --allowed-domains, --executable-path, --args, and --config, are rejected, so set those in the MCP server environment or config), timeoutMs (positive integer, maximum milliseconds to wait for the tool call), namespace (isolates daemon sockets and restore-state directories), restoreSave (auto, always, or never), restoreCheckUrl, restoreCheckText, and restoreCheckFn (conditions restored state must satisfy), caCert (path to a CA certificate or PEM bundle for the CLI's HTTPS requests and locally launched Chromium on Linux), useSystemCa (boolean, use the OS trust store for the CLI's HTTPS requests), clearCaCert (boolean, clear CA trust retained by the session; cannot be combined with caCert), idleTimeout (such as 30s, 5m, 1h, or milliseconds; defaults to 1h, 0 disables idle shutdown), observe (boolean, on page-changing tools: wait for the page to settle and return what the action changed), and relaunch (boolean, relaunch the session's browser even when no setting changed).";
 
 /// Levenshtein distance, for suggesting a close argument name.
 fn edit_distance(a: &str, b: &str) -> usize {
@@ -2742,6 +2746,7 @@ const MCP_EXTRA_ARGS_GLOBALS: &[&str] = &[
     "--headed",
     "--webgpu",
     "--no-webmcp",
+    "--shared-browser",
     "--debug",
     "--hide-scrollbars",
     "--annotate",
@@ -2941,6 +2946,10 @@ fn open_args(arguments: &Value) -> Result<Vec<String>, ProtocolError> {
         args.push("--no-webmcp".to_string());
         args.push((!webmcp).to_string());
     }
+    if let Some(shared_browser) = optional_bool(arguments, "sharedBrowser")? {
+        args.push("--shared-browser".to_string());
+        args.push(shared_browser.to_string());
+    }
     args.push("open".to_string());
     if let Some(url) = optional_string(arguments, "url")? {
         if !url.is_empty() {
@@ -3118,9 +3127,6 @@ fn snapshot_command_args(arguments: &Value) -> Result<Vec<String>, ProtocolError
         args.push("--full".to_string());
     }
     if let Some(budget) = optional_u64(arguments, "collapse")? {
-        if budget == 0 {
-            return Err(ProtocolError::invalid_params("collapse must be at least 1"));
-        }
         args.push("--collapse".to_string());
         args.push(budget.to_string());
     }
@@ -4145,6 +4151,9 @@ fn install_args(arguments: &Value) -> Result<Vec<String>, ProtocolError> {
     let mut args = vec!["install".to_string()];
     if optional_bool(arguments, "withDeps")?.unwrap_or(false) {
         args.push("--with-deps".to_string());
+    }
+    if optional_bool(arguments, "headlessShell")?.unwrap_or(false) {
+        args.push("--headless-shell".to_string());
     }
     Ok(args)
 }
@@ -5269,6 +5278,14 @@ mod tests {
     }
 
     #[test]
+    fn install_args_maps_headless_shell_to_cli_flag() {
+        assert_eq!(
+            install_args(&json!({ "headlessShell": true })).unwrap(),
+            vec!["install", "--headless-shell"]
+        );
+    }
+
+    #[test]
     fn tools_list_uses_unique_names() {
         let tools = tools();
         let mut names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
@@ -6117,7 +6134,8 @@ mod tests {
         assert_eq!(args, vec!["snapshot", "-i", "--collapse", "80"]);
         let cmd = crate::commands::parse_command(&args, &crate::flags::parse_flags(&[])).unwrap();
         assert_eq!(cmd["collapse"], 80);
-        assert!(snapshot_command_args(&json!({ "collapse": 0 })).is_err());
+        let args = snapshot_command_args(&json!({ "collapse": 0 })).unwrap();
+        assert_eq!(args, vec!["snapshot", "-i", "--collapse", "0"]);
     }
 
     #[test]

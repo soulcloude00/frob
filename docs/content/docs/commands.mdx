@@ -346,6 +346,8 @@ With `--observe`, a page-changing action (`open`, `back`, `forward`, `reload`, `
 
 The `observe` block in the response holds the interactive snapshot lines that appeared (`+`) or went (`-`), with fresh refs, as `changes`; `changed: false` when nothing changed; `navigated` and the new page's interactive `snapshot` when the action left the page; and `console` warnings and errors and `pageErrors` the action caused. `FROB_OBSERVE=1` turns it on for every action the daemon runs, and `--no-observe` turns it off for one command. In MCP, set `observe: true` on the action tool.
 
+Without `--observe`, actions whose effect often arrives after they return (`click`, `dblclick`, `fill`, `type`, `press`, `keyboard`, `select`, `check`, `uncheck`, `scroll`, `drag`, `upload`, and `find`) still wait for the page to settle by the same rule, capped at 1 second, so a command chained after them sees the result: `frob click @e3 && frob snapshot -i`. An action that changes nothing returns after about 100 ms. Set `FROB_SETTLE=0` when the daemon starts to return immediately instead.
+
 ### Merged and collapsed snapshots
 
 A list item, table cell, or heading that only wraps one element whose name contains its own is printed on that element's line, and both refs work:
@@ -359,10 +361,11 @@ Set `FROB_SNAPSHOT_MERGE=0` to print them on separate lines.
 ```bash
 frob snapshot -i --collapse
 frob snapshot -i --collapse 80
-frob snapshot -i --collapse -s @e406
+frob snapshot @e406              # open a folded section
+frob snapshot --collapse 0       # never fold
 ```
 
-`--collapse [n]` keeps a snapshot under `n` lines (default 150) by folding its biggest sections, largest first, into one line that keeps the section's ref and counts the refs inside, such as `- region "References" [ref=e406] (collapsed: 829 refs)`. The refs inside stay valid. Scope a snapshot to a folded section's ref with `-s` to open it, keeping `--collapse` to drill down further. A page within the budget prints unchanged, and flat pages with no sections print in full. In MCP, set `collapse` on `frob_snapshot` to the line budget.
+A snapshot longer than 800 lines folds its biggest sections, largest first, into one line that keeps the section's ref and counts the refs inside, such as `- region "References" [ref=e406] (collapsed: 829 refs)`. `FROB_SNAPSHOT_LINES` changes that budget for the daemon, and `--collapse [n]` sets it for one snapshot (150 with no number, 0 to never fold). The refs inside stay valid. Snapshot a folded section's ref, `snapshot @e406`, to open it; a long section folds the same way. A page within the budget prints unchanged, and flat pages with no sections print in full. In MCP, set `collapse` on `frob_snapshot` to the line budget.
 
 ### Iframe support
 
@@ -370,9 +373,9 @@ Iframes are detected automatically during snapshots. `Iframe` nodes are resolved
 
 ```bash
 frob snapshot -i
-# @e3 [Iframe] "payment-frame"
-#   @e4 [input] "Card number"
-#   @e5 [button] "Pay"
+# - Iframe "payment-frame" [ref=e3]
+#   - textbox "Card number" [ref=e4]
+#   - button "Pay" [ref=e5]
 
 # Interact directly using refs — no frame switch needed
 frob fill @e4 "4111111111111111"
@@ -707,6 +710,7 @@ See [Init Scripts & Extensions](/init-scripts) for launch-time scripts, script r
 --headed                 # Show browser window (not headless)
 --webgpu                 # Enable WebGPU (software Vulkan on Linux, no GPU needed)
 --no-webmcp              # Disable default experimental WebMCP Chrome features (or FROB_NO_WEBMCP env)
+--shared-browser         # Run the session in one Chrome shared with other sessions (or FROB_SHARED_BROWSER env)
 --cdp <port|url>         # Connect via CDP; root WebSocket query slash is optional
 --cdp-headers <json>     # Headers for --cdp discovery and WebSocket handshake (or FROB_CDP_HEADERS env)
 --auto-connect           # Auto-discover and connect to running Chrome

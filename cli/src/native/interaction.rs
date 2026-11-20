@@ -343,10 +343,6 @@ pub async fn type_text_into_active_context(
     Ok(())
 }
 
-pub async fn press_key(client: &CdpClient, session_id: &str, key: &str) -> Result<(), String> {
-    press_key_with_modifiers(client, session_id, key, None).await
-}
-
 /// Dispatch a keyDown+keyUp sequence for `key` with an optional CDP modifier bitmask.
 ///
 /// Modifier values follow the CDP `Input.dispatchKeyEvent` spec:

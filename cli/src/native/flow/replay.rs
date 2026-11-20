@@ -443,6 +443,7 @@ pub struct ReplayRun {
 }
 
 impl ReplayRun {
+    #[cfg(test)]
     /// The replay stopped because the run's time was up, not because of the site.
     pub(super) fn out_of_time(&self) -> bool {
         self.timed_out

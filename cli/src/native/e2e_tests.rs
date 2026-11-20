@@ -14792,7 +14792,7 @@ async fn e2e_pin_tab_rebinds_after_daemon_restart() {
 // `Target.attachedToTarget`-before-`Target.targetCreated` race) — empirically
 // in this environment Chrome always delivers `Target.targetCreated` first for
 // a `window.open()` popup, so this only exercises the `new_targets` drain
-// path in actions.rs (~line 1082), which was never the buggy branch. The
+// path in actions/daemon_state.rs, which was never the buggy branch. The
 // deterministic, race-independent regression coverage for finding #3 itself
 // lives at the unit level: `BrowserManager::register_discovered_page` (the
 // single decision point both drain handlers call) is exercised directly by
@@ -17582,4 +17582,114 @@ async fn e2e_flow_a_route_limited_by_resource_type_applies_the_same_on_both_tier
         }
     }
     let _ = exec(&run(&mut n, json!({ "action": "close" })), &mut state).await;
+}
+
+async fn shared_session(page: &str) -> DaemonState {
+    let mut state = DaemonState::new();
+    assert_success(
+        &execute_command(
+            &json!({ "id": "launch", "action": "launch", "headless": true, "sharedBrowser": true }),
+            &mut state,
+        )
+        .await,
+    );
+    assert_success(
+        &execute_command(
+            &json!({ "id": "nav", "action": "navigate", "url": page }),
+            &mut state,
+        )
+        .await,
+    );
+    state
+}
+
+async fn cookie_names(state: &mut DaemonState) -> Vec<String> {
+    let resp = execute_command(&json!({ "id": "c", "action": "cookies_get" }), state).await;
+    assert_success(&resp);
+    get_data(&resp)["cookies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|c| c["name"].as_str().map(String::from))
+        .collect()
+}
+
+async fn tab_count(state: &mut DaemonState) -> usize {
+    let resp = execute_command(&json!({ "id": "t", "action": "tab_list" }), state).await;
+    assert_success(&resp);
+    get_data(&resp)["tabs"].as_array().unwrap().len()
+}
+
+#[tokio::test]
+#[ignore]
+async fn e2e_shared_browser_sessions_share_one_chrome_and_stay_isolated() {
+    let (base_url, _server) = start_link_fixture_server().await;
+    let mut first = shared_session(&base_url).await;
+    let mut second = shared_session(&base_url).await;
+
+    let cdp_url = |state: &DaemonState| state.browser.as_ref().unwrap().get_cdp_url().to_string();
+    assert_eq!(cdp_url(&first), cdp_url(&second), "one Chrome for both");
+
+    // Same origin in both sessions, so only the context keeps them apart.
+    assert_success(
+        &execute_command(
+            &json!({ "id": "1", "action": "cookies_set", "name": "only_first", "value": "1" }),
+            &mut first,
+        )
+        .await,
+    );
+    assert!(cookie_names(&mut first)
+        .await
+        .contains(&"only_first".to_string()));
+    assert!(cookie_names(&mut second).await.is_empty());
+
+    assert_success(
+        &execute_command(
+            &json!({ "id": "2", "action": "tab_new", "url": base_url }),
+            &mut first,
+        )
+        .await,
+    );
+    assert_eq!(tab_count(&mut first).await, 2);
+    assert_eq!(
+        tab_count(&mut second).await,
+        1,
+        "another session's tab leaked in"
+    );
+
+    // The first session leaves; the Chrome and the second session stay.
+    assert_success(&execute_command(&json!({ "id": "3", "action": "close" }), &mut first).await);
+    assert_success(
+        &execute_command(
+            &json!({ "id": "4", "action": "navigate", "url": base_url }),
+            &mut second,
+        )
+        .await,
+    );
+    assert_eq!(tab_count(&mut second).await, 1);
+
+    assert_success(&execute_command(&json!({ "id": "5", "action": "close" }), &mut second).await);
+}
+
+#[tokio::test]
+#[ignore]
+async fn e2e_shared_browser_rejects_browser_wide_settings() {
+    let mut state = DaemonState::new();
+    let resp = execute_command(
+        &json!({
+            "id": "1",
+            "action": "launch",
+            "headless": true,
+            "sharedBrowser": true,
+            "ignoreHTTPSErrors": true,
+        }),
+        &mut state,
+    )
+    .await;
+    assert_eq!(resp["success"], false);
+    let error = resp["error"].as_str().unwrap();
+    assert!(
+        error.contains("--shared-browser cannot be combined with --ignore-https-errors"),
+        "{error}"
+    );
 }

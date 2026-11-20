@@ -26,7 +26,6 @@ pub struct AuthProfile {
 }
 
 // Keep legacy Credential alias for backward compatibility
-pub type Credential = AuthProfile;
 
 fn validate_profile_name(name: &str) -> Result<(), String> {
     if name.is_empty()
@@ -394,7 +393,7 @@ mod tests {
     use super::*;
 
     fn with_test_key<F: FnOnce()>(f: F) {
-        let _lock = AUTH_TEST_MUTEX.lock().unwrap();
+        let _lock = AUTH_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let original = std::env::var(ENCRYPTION_KEY_ENV).ok();
         let test_key = "a".repeat(64);
         // SAFETY: TEST_MUTEX serializes all test access so no concurrent mutation.
@@ -473,7 +472,7 @@ mod tests {
 
     #[test]
     fn test_ensure_encryption_key_rejects_malformed_env_key() {
-        let _lock = AUTH_TEST_MUTEX.lock().unwrap();
+        let _lock = AUTH_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let home = tempfile::TempDir::new().unwrap();
         let env = crate::test_utils::EnvGuard::new(&["HOME", ENCRYPTION_KEY_ENV]);
         env.set("HOME", home.path().to_str().unwrap());

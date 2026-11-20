@@ -1,3 +1,6 @@
+// These types mirror the wire protocol, so not every type or field is used.
+#![allow(dead_code)]
+
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
@@ -141,6 +144,9 @@ pub struct SetDiscoverTargetsParams {
 #[serde(rename_all = "camelCase")]
 pub struct CreateTargetParams {
     pub url: String,
+    /// The browser context to create the tab in; the default one when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_context_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

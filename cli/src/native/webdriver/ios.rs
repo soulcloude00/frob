@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -6,6 +6,8 @@ pub struct IosDevice {
     pub name: String,
     pub udid: String,
     pub state: String,
+    /// Read by `to_device_json`, which only macOS (with Xcode) uses.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub runtime: String,
     pub is_real: bool,
 }
@@ -132,22 +134,6 @@ pub fn boot_simulator(udid: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn shutdown_simulator(udid: &str) -> Result<(), String> {
-    let output = Command::new("xcrun")
-        .args(["simctl", "shutdown", udid])
-        .output()
-        .map_err(|e| format!("Failed to shutdown simulator: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.contains("current state: Shutdown") {
-            return Ok(());
-        }
-        return Err(format!("Failed to shutdown simulator {}: {}", udid, stderr));
-    }
-    Ok(())
-}
-
 pub fn select_device(device_name: Option<&str>, udid: Option<&str>) -> Result<IosDevice, String> {
     if let Some(u) = udid {
         let devices = list_all_devices()?;
@@ -187,11 +173,12 @@ pub fn select_device(device_name: Option<&str>, udid: Option<&str>) -> Result<Io
     Ok((*iphone_devices.last().unwrap()).clone())
 }
 
+#[cfg(any(target_os = "macos", test))]
 pub fn to_device_json(devices: &[IosDevice]) -> Value {
     let list: Vec<Value> = devices
         .iter()
         .map(|d| {
-            json!({
+            serde_json::json!({
                 "name": d.name,
                 "udid": d.udid,
                 "state": d.state,
@@ -200,7 +187,7 @@ pub fn to_device_json(devices: &[IosDevice]) -> Value {
             })
         })
         .collect();
-    json!({ "devices": list })
+    serde_json::json!({ "devices": list })
 }
 
 #[cfg(test)]

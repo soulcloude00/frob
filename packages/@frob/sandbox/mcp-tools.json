@@ -198,6 +198,10 @@
       "description": "Navigate back.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -304,6 +308,10 @@
       "description": "Check a checkbox or switch.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -340,6 +348,10 @@
           "newTab": {
             "default": false,
             "description": "Open link targets in a new tab after applying session setup.",
+            "type": "boolean"
+          },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
             "type": "boolean"
           },
           "selector": {
@@ -753,6 +765,10 @@
       "description": "Double-click an element.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -1097,6 +1113,10 @@
             "description": "Use seeded, curved mouse movement.",
             "type": "boolean"
           },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -1186,6 +1206,10 @@
       "description": "Clear and fill an input by @ref or CSS selector.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -1444,6 +1468,10 @@
       "description": "Focus an element.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -1470,6 +1498,10 @@
       "description": "Navigate forward.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -1823,6 +1855,10 @@
       "description": "Hover an element.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -1870,6 +1906,10 @@
       "description": "Install browser binaries. On macOS versions below 13, the command stops before downloading Chrome for Testing and prints instructions to update macOS or install Chrome manually. If `sw_vers -productVersion` is unavailable, exits with an error, returns no version, or returns a malformed version, the command reports a detection error and stops before making a network request.",
       "inputSchema": {
         "properties": {
+          "headlessShell": {
+            "description": "Install chrome-headless-shell, the headless-only Chrome build. It is about half the size, uses less memory, and is used for headless sessions without extensions once installed.",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -1973,6 +2013,10 @@
       "description": "Insert text at the current focus without key events.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -2000,6 +2044,10 @@
       "description": "Type text at the current focus using real key events.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -2031,6 +2079,10 @@
             "description": "Key name such as Enter, Tab, or Control+a.",
             "type": "string"
           },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -2058,6 +2110,10 @@
           "key": {
             "description": "Key name such as Enter, Tab, or Control+a.",
             "type": "string"
+          },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
           },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
@@ -2434,6 +2490,10 @@
             "description": "Show the browser window. Explicit true/false overrides FROB_HEADED and config; omit to use those defaults.",
             "type": "boolean"
           },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "relaunch": {
             "description": "Relaunch the session's browser even when no setting changed (--relaunch).",
             "type": "boolean"
@@ -2452,6 +2512,10 @@
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
+          },
+          "sharedBrowser": {
+            "description": "Run the session as an isolated context in one Chrome shared with other sessions, which uses about half the memory per session. Headless Chrome on macOS and Linux only; explicit true/false overrides FROB_SHARED_BROWSER and config.",
+            "type": "boolean"
           },
           "timeoutMs": {
             "default": 120000,
@@ -2654,6 +2718,10 @@
           "key": {
             "description": "Key name such as Enter, Tab, or Control+a.",
             "type": "string"
+          },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
           },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
@@ -3102,6 +3170,10 @@
       "description": "Reload the page.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "session": {
             "description": "Isolated browser session name: Unicode letters, numbers, hyphens, and underscores.",
             "type": "string"
@@ -3239,6 +3311,10 @@
             ],
             "type": "string"
           },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Optional element selector to scroll.",
             "type": "string"
@@ -3264,6 +3340,10 @@
       "description": "Scroll an element into view.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -3290,6 +3370,10 @@
       "description": "Select one or more options in a select element.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -3728,6 +3812,11 @@
       "description": "Return an accessibility-tree snapshot with reusable element refs. Presentational iframes use the Iframe role for snapshots and stale-ref recovery. If an action reports that a stale ref cannot be recovered, take a new snapshot and use a fresh ref. Controls with an empty or duplicated accessible name carry a hint=\"...\" read from the DOM after the ref.",
       "inputSchema": {
         "properties": {
+          "collapse": {
+            "description": "Line budget (default 800, or FROB_SNAPSHOT_LINES; 0 for none). When the snapshot is longer, fold its biggest sections, largest first, into one line each that keeps the section's ref and its ref count. Expand one by snapshotting again with selector set to that ref.",
+            "minimum": 0,
+            "type": "integer"
+          },
           "compact": {
             "default": false,
             "description": "Remove empty structural elements, retaining only matching content and its direct ancestors. With interactive:false, retain visible text.",
@@ -4433,6 +4522,10 @@
             "minimum": 0,
             "type": "integer"
           },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -4466,6 +4559,10 @@
       "description": "Uncheck a checkbox or switch.",
       "inputSchema": {
         "properties": {
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
+          },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",
             "type": "string"
@@ -4522,6 +4619,10 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "observe": {
+            "description": "Wait for the page to settle and return what the action changed: snapshot lines that appeared or went (with fresh refs), the new page's snapshot after a navigation, and console errors and page errors it caused (--observe).",
+            "type": "boolean"
           },
           "selector": {
             "description": "Element @ref from snapshot, or a CSS selector.",

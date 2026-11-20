@@ -44,7 +44,8 @@ use connection::{
 use flags::{clean_args, parse_flags, Flags};
 use install::run_install;
 use output::{
-    print_command_help, print_help, print_response_with_opts, print_version, OutputOptions,
+    print_command_help, print_full_help, print_help, print_response_with_opts, print_version,
+    OutputOptions,
 };
 use session_settings::parse_proxy;
 use upgrade::run_upgrade;
@@ -1498,7 +1499,11 @@ fn main() {
     if has_help {
         clean.retain(|arg| arg != "--help" && arg != "-h");
         if clean.is_empty() || clean.iter().all(|arg| arg.starts_with('-')) {
-            print_help();
+            if clean.iter().any(|arg| arg == "--all") {
+                print_full_help();
+            } else {
+                print_help();
+            }
             return;
         }
         if let Some(cmd) = clean.first() {
@@ -1524,7 +1529,8 @@ fn main() {
     // Handle install separately
     if clean.first().map(|s| s.as_str()) == Some("install") {
         let with_deps = args.iter().any(|a| a == "--with-deps" || a == "-d");
-        run_install(with_deps);
+        let headless_shell = args.iter().any(|a| a == "--headless-shell");
+        run_install(with_deps, headless_shell);
         return;
     }
 
@@ -2597,6 +2603,8 @@ mod tests {
         flags.cli_webgpu = false;
         flags.no_webmcp = false;
         flags.cli_no_webmcp = false;
+        flags.shared_browser = false;
+        flags.cli_shared_browser = false;
         flags.color_scheme = None;
         flags.download_path = None;
         flags.engine = None;

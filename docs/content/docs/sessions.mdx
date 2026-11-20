@@ -39,6 +39,25 @@ Each session has its own:
 - Navigation history
 - Authentication state
 
+## Shared browser
+
+By default each session launches its own Chrome. With `--shared-browser`, sessions run as separate browser contexts inside one Chrome, so the browser, GPU, and network processes are paid for once:
+
+```bash
+frob --session agent1 --shared-browser open site-a.com
+frob --session agent2 --shared-browser open site-b.com
+```
+
+Sessions stay isolated: each has its own cookies, storage, and tabs, and cannot see another session's tabs. Ten sessions on a small page measured 455 MB in total against 705 MB with a Chrome each (macOS, headless shell).
+
+The first shared session starts the Chrome and the last one to close stops it. Closing a session closes its tabs and discards its cookies and storage.
+
+Because the Chrome is shared, a session cannot change settings that apply to the whole browser. These are rejected with `--shared-browser`: `--headed`, `--extension`, `--profile`, `--executable-path`, `--proxy`, `--args`, `--ignore-https-errors`, `--allow-file-access`, `--ca-cert`, `--webgpu`, `--no-webmcp`, `--hide-scrollbars false`, and `--allowed-domains`. `trace`, `profiler`, and `download` are also unavailable, because they act on the whole browser. Use a session without the flag for those.
+
+Shared browsers run on macOS and Linux. If every daemon using a shared Chrome is killed without closing, the Chrome keeps running until the next `--shared-browser` session reuses it and later closes.
+
+To make it the default, set `FROB_SHARED_BROWSER=1` or `"sharedBrowser": true` in the config file.
+
 ## Changing settings on a running session
 
 Each command carries the settings you set for it, whether from a flag, an environment variable, or the config file. The daemon compares them with what the session is running and acts on the difference:

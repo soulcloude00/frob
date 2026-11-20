@@ -2759,12 +2759,14 @@ Options:
   -u, --urls           Include href URLs for link elements
   -c, --compact        Remove empty structural elements
   -d, --depth <n>      Limit tree depth
-  -s, --selector <sel> Scope snapshot to CSS selector
+  -s, --selector <sel> Scope snapshot to a CSS selector or @ref; `snapshot @e9` also works
       --delta          Return full state once, then unchanged or structural deltas
                        Deltas include ref changes and an exact treeChange line splice
       --full           Force full state and update the delta baseline
-      --collapse [n]   Keep the snapshot under n lines (default 150) by folding its
-                       biggest sections into one line each; expand one with -s @ref
+      --collapse [n]   Keep the snapshot under n lines by folding its biggest sections
+                       into one line each; open one with snapshot @ref. Snapshots fold
+                       past 800 lines (FROB_SNAPSHOT_LINES) without it; --collapse with
+                       no number uses 150, and --collapse 0 never folds
 
 Compact snapshots keep visible text, status text, and their direct ancestors.
 Empty sibling branches are removed. Interactive snapshots filter out noninteractive content. MCP snapshots default to interactive; set
@@ -2781,9 +2783,9 @@ its own is printed on that element's line, with both refs:
 Set FROB_SNAPSHOT_MERGE=0 to print them on separate lines.
 
 Collapsed sections:
-With --collapse, a long snapshot folds its biggest sections, largest first:
+A snapshot past its line budget folds its biggest sections, largest first:
   - region "References" [ref=e406] (collapsed: 829 refs)
-The refs inside stay valid. Run snapshot -i --collapse -s @e406 to open one.
+The refs inside stay valid. Run snapshot @e406 to open one.
 
 Global Options:
   --json               Output as JSON
@@ -2799,6 +2801,7 @@ Examples:
   frob snapshot --delta --full
   frob snapshot -i --collapse
   frob snapshot -i --collapse 80 -s @e406
+  frob snapshot --collapse 0       # never fold
 "##
         }
 
@@ -3085,7 +3088,7 @@ Subcommands:
     --body <json>            Respond with custom body
     --allow-origin <origin>  Let a page on <origin> read the mocked body cross-origin
   unroute [url]              Remove route (all if no URL)
-  requests [options]         List captured requests
+  requests [options]         List captured requests (the most recent 10,000)
     --clear                  Clear request log
     --filter <pattern>       Filter by URL pattern
     --type <types>           Filter by resource type (comma-separated: xhr,fetch,document)
@@ -3728,9 +3731,15 @@ Examples:
             r##"
 frob install - Install browser binaries
 
-Usage: frob install [--with-deps]
+Usage: frob install [--with-deps] [--headless-shell]
 
 Downloads and installs browser binaries required for automation.
+
+With --headless-shell, installs chrome-headless-shell, the headless-only build
+of Chrome for Testing. It is about half the size of Chrome, starts faster, and
+uses less memory. Once installed, headless sessions without extensions use it.
+Headed sessions and sessions with extensions need the full Chrome from
+`frob install`.
 
 On macOS versions below 13, the command stops before downloading Chrome for
 Testing and prints instructions to update macOS or install Chrome manually. If
@@ -3741,10 +3750,12 @@ and stops before making a network request.
 Options:
   -d, --with-deps      Also install Linux system dependencies. The package manager runs
                        directly as root; non-root uses sudo.
+  --headless-shell     Install chrome-headless-shell instead of Chrome
 
 Examples:
   frob install
   frob install --with-deps
+  frob install --headless-shell
 "##
         }
 
@@ -4425,7 +4436,51 @@ Examples:
     true
 }
 
+/// `frob --help`: enough to drive a page with no other reading. Agents that have never seen
+/// frob start here, and whatever they read stays in their context for every later turn, so
+/// this stays short. `frob --help --all` prints every command and option.
 pub fn print_help() {
+    println!(
+        r#"frob - browser automation for AI agents
+
+Usage: frob <command> [args] [options]
+
+The loop:
+  frob open <url>              Open a page (starts the browser)
+  frob snapshot                The page as text, one element per line, each control with a
+                               ref and its state:  - button "Annual" [pressed=true, ref=e3]
+  frob click @e3               Act on a ref; it returns once the page has settled
+  frob snapshot                Look again: the text shows whether the step worked
+
+Chain steps in one call: frob click @e3 && frob snapshot. Refs survive same-page updates;
+after a navigation, snapshot again. A long page folds its biggest sections into one line
+each, such as - region "History" [ref=e14] (collapsed: 150 refs); snapshot @e14 opens one.
+
+Act:
+  click @e3                    fill @e5 "text"              type @e5 "text"
+  press Enter                  check @e7 / uncheck @e7      select @e9 "Option label"
+  hover @e3                    scroll down [px]             upload @e4 ./file.pdf
+  back / forward / reload      --observe click @e3: also print what the click changed
+
+Read:
+  snapshot -i                  Only controls, for long pages
+  snapshot @e12                Only what is inside @e12
+  get text @e12                Text of one element (also: value, title, url)
+  screenshot [path]            Only for pixels the tree cannot show, such as a canvas
+
+Wait (when the element you expect is missing, the page is usually still loading):
+  wait --text "Saved"          wait @e5          wait --load networkidle          wait 500
+
+Find without a snapshot:
+  find role button click --name "Submit"         find label "Email" fill "a@b.co"
+
+Other: tab list | tab new <url> | tab t2, eval <js>, batch "cmd" "cmd", close.
+Sessions: FROB_SESSION or --session <name> gives you your own browser.
+More: frob <command> --help, frob --help --all, frob skills get core"#
+    );
+}
+
+pub fn print_full_help() {
     println!(
         r#"
 frob - fast browser automation CLI for AI agents
@@ -4633,6 +4688,7 @@ Dashboard:
 Setup:
   install                    Install browser binaries
   install --with-deps        Also install system dependencies (Linux)
+  install --headless-shell   Install the smaller headless-only Chrome build
   upgrade                    Upgrade to the latest version
   doctor [--fix]             Diagnose install; auto-clean stale files
   dashboard start            Start the observability dashboard
@@ -4642,7 +4698,7 @@ Snapshot Options:
   -i, --interactive          Only interactive elements
   -c, --compact              Remove empty structural elements
   -d, --depth <n>            Limit tree depth
-  -s, --selector <sel>       Scope to CSS selector
+  -s, --selector <sel>       Scope to a CSS selector or @ref (or pass it bare)
 
 Authentication:
   --profile <name|path>      Chrome profile name (e.g., Default) to reuse login state,
@@ -4678,6 +4734,7 @@ Options:
   --args <args>              Browser launch args, newline separated, or comma separated before another flag
                              (or FROB_ARGS). Commas inside a value are kept.
                              e.g., --args "--no-sandbox,--disable-features=Translate,HttpsUpgrades"
+                             --enable-features and --disable-features merge with the lists frob passes.
   --user-agent <ua>          Custom User-Agent (or FROB_USER_AGENT)
   --proxy <server>           Proxy server URL (or FROB_PROXY, HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
                              When launching Chrome, frob accepts a proxy URL with a trailing slash.
@@ -4707,6 +4764,11 @@ Options:
   --webgpu                   Enable WebGPU; uses SwiftShader software Vulkan on Linux, no GPU required (or FROB_WEBGPU env)
   --no-webmcp                Disable default experimental WebMCP support for locally launched Chrome
                              (or FROB_NO_WEBMCP env)
+  --shared-browser           Run the session as an isolated context in one Chrome shared with
+                             other --shared-browser sessions, which uses less memory per session.
+                             Headless Chrome on macOS and Linux only; browser-wide settings such as
+                             --proxy, --args, --profile, --extension, and --allowed-domains are
+                             rejected (or FROB_SHARED_BROWSER env)
   --no-auto-connect          Return a session attached with --auto-connect to a local launch
                              (or --auto-connect false; overrides FROB_AUTO_CONNECT)
   --cdp <port|url>           Connect via CDP; root WebSocket query slash is optional
@@ -4814,6 +4876,7 @@ Environment:
   FROB_NO_XVFB          Disable automatic Xvfb for headed mode on displayless Linux hosts
   FROB_NO_VERSION_CHECK Skip the outdated-Chrome CVE check (it fetches chromereleases.googleblog.com)
   FROB_WEBGPU           Enable WebGPU (SwiftShader software Vulkan on Linux)
+  FROB_SHARED_BROWSER   Run sessions as isolated contexts in one shared Chrome
   FROB_JSON             JSON output
   FROB_ANNOTATE         Annotated screenshot with numbered labels and legend
   FROB_DEBUG            Debug output
@@ -4832,6 +4895,10 @@ Environment:
   FROB_AUTO_CONNECT     Auto-discover and connect to running Chrome
   FROB_PIN_TAB          Pin the session to its bound tab (strict tab binding)
   FROB_OBSERVE          Observe every page-changing action (see --observe); read by the daemon
+  FROB_SNAPSHOT_LINES   Line budget past which snapshots fold their biggest sections
+                        (default 800; 0 never folds); read by the daemon
+  FROB_SETTLE           0 to return from click, fill, press, and similar actions without
+                        waiting up to 1 s for the page to settle; read by the daemon
   FROB_SNAPSHOT_MERGE   Set to 0 to print wrapper lines separately in snapshots
   FROB_TIMING           File to append phase timings to, from the CLI and the daemon
   FROB_ALLOW_FILE_ACCESS Allow file:// URLs to access local files

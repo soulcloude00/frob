@@ -24,7 +24,9 @@ webpki-roots = "0.26"
 futures-util = "0.3"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
-image = "0.25"
+# Chrome screenshots are PNG, JPEG, or WebP; GIF and BMP cover user-supplied
+# diff baselines. The default set also builds AVIF, EXR, TIFF and others.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots", "stream"] }
 sha2 = "0.10"
 aes-gcm = "0.10"
@@ -54,11 +56,51 @@ tokio = { version = "1", features = ["test-util"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# Size-optimized: commands spend their time waiting on the browser, and this
+# measured no slower than opt-level 3 on snapshot, screenshot, and eval while
+# cutting the binary by 15%. The crates below do the CPU-bound work (image
+# decoding and encoding, JSON, hashing, encryption) and stay at opt-level 3.
 [profile.release]
-opt-level = 3
+opt-level = "s"
 lto = true
 codegen-units = 1
 strip = true
+
+[profile.release.package.image]
+opt-level = 3
+
+[profile.release.package.png]
+opt-level = 3
+
+[profile.release.package.zune-jpeg]
+opt-level = 3
+
+[profile.release.package.image-webp]
+opt-level = 3
+
+[profile.release.package.fdeflate]
+opt-level = 3
+
+[profile.release.package.zlib-rs]
+opt-level = 3
+
+[profile.release.package.miniz_oxide]
+opt-level = 3
+
+[profile.release.package.serde_json]
+opt-level = 3
+
+[profile.release.package.serde]
+opt-level = 3
+
+[profile.release.package.sha2]
+opt-level = 3
+
+[profile.release.package.aes]
+opt-level = 3
+
+[profile.release.package.aes-gcm]
+opt-level = 3
 
 [profile.ci]
 inherits = "release"
@@ -71,3 +113,7 @@ opt-level = 3
 
 [profile.dev.package.png]
 opt-level = 3
+
+# Dependencies are not stepped through, and their debug info is most of target/.
+[profile.dev.package."*"]
+debug = false

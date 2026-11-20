@@ -461,14 +461,6 @@ pub enum BrowserProcess {
 }
 
 impl BrowserProcess {
-    pub fn kill(&mut self) {
-        match self {
-            BrowserProcess::Chrome(p) => p.kill(),
-            BrowserProcess::Lightpanda(p) => p.kill(),
-            BrowserProcess::Obscura(p) => p.kill(),
-        }
-    }
-
     pub fn wait_or_kill(&mut self, timeout: std::time::Duration) {
         match self {
             BrowserProcess::Chrome(p) => p.wait_or_kill(timeout),
@@ -496,6 +488,7 @@ pub struct BrowserManager {
     default_timeout_ms: u64,
     /// Stored download path from launch options, re-applied to new contexts (e.g., recording)
     pub download_path: Option<String>,
+    #[allow(dead_code)]
     /// Whether to ignore HTTPS certificate errors, re-applied to new contexts (e.g., recording)
     pub ignore_https_errors: bool,
     /// Origins visited during this session, used by save_state to collect cross-origin localStorage.
@@ -529,6 +522,48 @@ pub struct BrowserManager {
     /// product. A reconnect builds a new manager, so even a reused CDP URL
     /// is checked again.
     product_checked: bool,
+    /// Set for a `--shared-browser` session: its context in the shared Chrome.
+    /// `browser_process` is `None` then, because no daemon owns that Chrome.
+    shared: Option<SharedContext>,
+}
+
+/// A session's own browser context in the Chrome that `--shared-browser`
+/// sessions share. Tabs, cookies, and storage in it are invisible to the
+/// other sessions.
+struct SharedContext {
+    context_id: String,
+    /// Dropped after the context is disposed; stops the Chrome if this was
+    /// its last session.
+    _membership: super::shared_browser::Membership,
+}
+
+/// The first launch setting that only a private Chrome can honor, because it
+/// is a browser-wide switch or needs a browser of its own.
+fn shared_browser_conflict(options: &LaunchOptions) -> Option<&'static str> {
+    let conflicts = [
+        (!options.headless, "--headed"),
+        (
+            options.extensions.as_ref().is_some_and(|e| !e.is_empty()),
+            "--extension",
+        ),
+        (options.profile.is_some(), "--profile"),
+        (options.executable_path.is_some(), "--executable-path"),
+        (
+            options.proxy.is_some() || options.proxy_bypass.is_some(),
+            "--proxy",
+        ),
+        (!options.args.is_empty(), "--args"),
+        (options.ignore_https_errors, "--ignore-https-errors"),
+        (options.allow_file_access, "--allow-file-access"),
+        (options.ca_cert.is_some(), "--ca-cert"),
+        (options.webgpu, "--webgpu"),
+        (!options.webmcp, "--no-webmcp"),
+        (!options.hide_scrollbars, "--hide-scrollbars false"),
+        (options.restrict_webrtc, "--allowed-domains"),
+    ];
+    conflicts
+        .into_iter()
+        .find_map(|(set, name)| set.then_some(name))
 }
 
 /// Stable machine-readable prefix for "the bound tab no longer exists"
@@ -635,7 +670,26 @@ impl BrowserManager {
     /// callers must override this result when the daemon owns the provider
     /// lifecycle. An explicit FROB_IDLE_TIMEOUT_MS applies regardless.
     pub fn blocks_default_idle_shutdown(&self) -> bool {
-        self.browser_process.is_none() || !self.headless
+        (self.browser_process.is_none() && self.shared.is_none()) || !self.headless
+    }
+
+    /// The context this session's tabs are created in: its own in a shared
+    /// Chrome, otherwise the browser's default (`None`).
+    pub fn browser_context_id(&self) -> Option<String> {
+        self.shared.as_ref().map(|s| s.context_id.clone())
+    }
+
+    pub fn is_shared(&self) -> bool {
+        self.shared.is_some()
+    }
+
+    /// Whether `target` is a tab this session may track. In a shared Chrome
+    /// that excludes every tab outside the session's own context.
+    pub fn owns_target(&self, target: &TargetInfo) -> bool {
+        should_track_target(target)
+            && self.shared.as_ref().is_none_or(|shared| {
+                target.browser_context_id.as_deref() == Some(shared.context_id.as_str())
+            })
     }
 
     pub async fn launch(options: LaunchOptions, engine: Option<&str>) -> Result<Self, String> {
@@ -670,6 +724,15 @@ impl BrowserManager {
                     engine
                 ));
             }
+        }
+
+        if options.shared_browser {
+            if engine != "chrome" {
+                return Err(format!(
+                    "--shared-browser needs the chrome engine, not {engine}"
+                ));
+            }
+            return Self::launch_shared(options).await;
         }
 
         let ignore_https_errors = options.ignore_https_errors;
@@ -709,7 +772,7 @@ impl BrowserManager {
             }
         };
 
-        let mut manager = if engine == "lightpanda" {
+        let manager = if engine == "lightpanda" {
             initialize_lightpanda_manager(ws_url, process).await?
         } else if engine == "obscura" {
             initialize_obscura_manager(ws_url, process).await?
@@ -735,6 +798,7 @@ impl BrowserManager {
                 wedge_suspect: None,
                 headless,
                 product_checked: false,
+                shared: None,
             };
             if let Err(error) = manager.discover_and_attach_targets().await {
                 let _ = manager
@@ -746,6 +810,99 @@ impl BrowserManager {
             manager
         };
 
+        manager
+            .apply_launch_overrides(ignore_https_errors, user_agent, color_scheme)
+            .await
+    }
+
+    /// Joins the Chrome that `--shared-browser` sessions share, starting it if
+    /// this is the first, and opens this session's own context in it.
+    async fn launch_shared(options: LaunchOptions) -> Result<Self, String> {
+        if let Some(setting) = shared_browser_conflict(&options) {
+            return Err(format!(
+                "--shared-browser cannot be combined with {setting}: it applies to the whole \
+                 browser, which other sessions share"
+            ));
+        }
+        let user_agent = options.user_agent.clone();
+        let color_scheme = options.color_scheme.clone();
+        let download_path = options.download_path.clone();
+
+        // The Chrome is launched the same way whichever session comes first.
+        #[cfg(unix)]
+        let shared_options = LaunchOptions {
+            shared_browser: true,
+            ..Default::default()
+        };
+        let (ws_url, membership) = tokio::task::spawn_blocking(move || {
+            super::shared_browser::acquire(|| {
+                #[cfg(unix)]
+                return launch_chrome(&shared_options)?.into_shared();
+                #[cfg(not(unix))]
+                Err("--shared-browser is not supported on Windows".to_string())
+            })
+        })
+        .await
+        .map_err(|e| format!("Shared browser launch task failed: {}", e))??;
+
+        let client = Arc::new(CdpClient::connect(&ws_url).await?);
+        // disposeOnDetach closes the context if this daemon dies without
+        // closing it, so a crash leaves no tabs behind in the shared Chrome.
+        let context = client
+            .send_command(
+                "Target.createBrowserContext",
+                Some(json!({ "disposeOnDetach": true })),
+                None,
+            )
+            .await?;
+        let context_id = context
+            .get("browserContextId")
+            .and_then(|v| v.as_str())
+            .ok_or("Target.createBrowserContext returned no browserContextId")?
+            .to_string();
+
+        let mut manager = Self {
+            client,
+            browser_process: None,
+            ws_url,
+            pages: Vec::new(),
+            active_page_index: 0,
+            default_timeout_ms: 25_000,
+            download_path,
+            ignore_https_errors: false,
+            visited_origins: HashSet::new(),
+            next_tab_id: 1,
+            direct_page: false,
+            pin_tab: false,
+            bound_target_id: None,
+            bound_target_gone: None,
+            wedge_suspect: None,
+            headless: true,
+            product_checked: false,
+            shared: Some(SharedContext {
+                context_id,
+                _membership: membership,
+            }),
+        };
+        if let Err(error) = manager.discover_and_attach_targets().await {
+            let _ = manager
+                .close_with_timeout(Some(FAILED_INITIALIZATION_CLOSE_TIMEOUT))
+                .await;
+            return Err(error);
+        }
+        manager
+            .apply_launch_overrides(false, user_agent, color_scheme)
+            .await
+    }
+
+    /// Applies the per-page launch settings to the first tab.
+    async fn apply_launch_overrides(
+        self,
+        ignore_https_errors: bool,
+        user_agent: Option<String>,
+        color_scheme: Option<String>,
+    ) -> Result<Self, String> {
+        let mut manager = self;
         let session_id = match manager.active_session_id() {
             Ok(session_id) => session_id.to_string(),
             Err(error) => {
@@ -847,6 +1004,7 @@ impl BrowserManager {
             wedge_suspect: None,
             headless: true,
             product_checked: false,
+            shared: None,
         };
 
         let initialization = if direct_page {
@@ -896,7 +1054,7 @@ impl BrowserManager {
         let page_targets: Vec<TargetInfo> = result
             .target_infos
             .into_iter()
-            .filter(should_track_target)
+            .filter(|target| self.owns_target(target))
             .collect();
 
         if page_targets.is_empty() {
@@ -907,6 +1065,7 @@ impl BrowserManager {
                     "Target.createTarget",
                     &CreateTargetParams {
                         url: "about:blank".to_string(),
+                        browser_context_id: self.browser_context_id(),
                     },
                     None,
                 )
@@ -1016,6 +1175,12 @@ impl BrowserManager {
     }
 
     pub async fn enable_browser_auto_attach_pub(&self) -> Result<(), String> {
+        if self.shared.is_some() {
+            // Browser-wide: it would pause and attach other sessions' tabs.
+            return Err(
+                "Network controls for new tabs are not available with --shared-browser".to_string(),
+            );
+        }
         self.client
             .send_command(
                 "Target.setAutoAttach",
@@ -1125,7 +1290,7 @@ impl BrowserManager {
             session_id: session_id.clone(),
             last_url,
             replacement_target_id: None,
-            kept: self.browser_process.is_none() || !may_replace,
+            kept: (self.browser_process.is_none() && self.shared.is_none()) || !may_replace,
         };
         if report.kept {
             return Some(report);
@@ -1189,6 +1354,7 @@ impl BrowserManager {
                 "Target.createTarget",
                 &CreateTargetParams {
                     url: "about:blank".to_string(),
+                    browser_context_id: self.browser_context_id(),
                 },
                 None,
             )
@@ -1355,10 +1521,7 @@ impl BrowserManager {
         }
     }
 
-    pub fn pin_tab(&self) -> bool {
-        self.pin_tab
-    }
-
+    #[cfg(test)]
     /// The target id this session is bound to, if any.
     pub fn bound_target_id(&self) -> Option<&str> {
         self.bound_target_id.as_deref()
@@ -1657,6 +1820,18 @@ impl BrowserManager {
         &mut self,
         browser_close_timeout: Option<Duration>,
     ) -> Result<(), String> {
+        if let Some(shared) = &self.shared {
+            // Closes this session's tabs and drops its cookies and storage.
+            // The Chrome stays up for the other sessions.
+            let dispose = self.client.send_command(
+                "Target.disposeBrowserContext",
+                Some(json!({ "browserContextId": shared.context_id })),
+                None,
+            );
+            let timeout = browser_close_timeout.unwrap_or(Duration::from_secs(5));
+            let _ = tokio::time::timeout(timeout, dispose).await;
+        }
+
         if self.browser_process.is_some() {
             // Only send Browser.close when we launched the browser ourselves.
             // For external connections (--auto-connect, --cdp) we just disconnect
@@ -1671,6 +1846,11 @@ impl BrowserManager {
 
         self.client.close().await;
 
+        if let Some(shared) = self.shared.take() {
+            // Leaving the registry can stop the Chrome, which blocks briefly.
+            let _ = tokio::task::spawn_blocking(move || drop(shared)).await;
+        }
+
         if let Some(mut process) = self.browser_process.take() {
             let timeout = std::time::Duration::from_secs(5);
             let _ = tokio::task::spawn_blocking(move || {
@@ -1680,14 +1860,6 @@ impl BrowserManager {
         }
 
         Ok(())
-    }
-
-    pub fn has_pages(&self) -> bool {
-        !self.pages.is_empty()
-    }
-
-    pub fn default_timeout_ms(&self) -> u64 {
-        self.default_timeout_ms
     }
 
     /// Checks if the CDP connection is alive by sending a simple command.
@@ -1744,6 +1916,7 @@ impl BrowserManager {
             wedge_suspect: None,
             headless: true,
             product_checked: false,
+            shared: None,
         }
     }
 
@@ -1812,6 +1985,7 @@ impl BrowserManager {
                 "Target.createTarget",
                 &CreateTargetParams {
                     url: "about:blank".to_string(),
+                    browser_context_id: self.browser_context_id(),
                 },
                 None,
             )
@@ -1850,18 +2024,6 @@ impl BrowserManager {
     // -----------------------------------------------------------------------
     // Tab management
     // -----------------------------------------------------------------------
-
-    /// Checks if `active_page_index` is still valid and adjusts it if not
-    /// (e.g., after a tab was closed).
-    pub fn update_active_page_if_needed(&mut self) {
-        if self.pages.is_empty() {
-            self.active_page_index = 0;
-            return;
-        }
-        if self.active_page_index >= self.pages.len() {
-            self.active_page_index = self.pages.len() - 1;
-        }
-    }
 
     fn update_active_page_after_removal(&mut self, removed_index: usize) {
         self.active_page_index = active_page_index_after_removal(
@@ -1985,6 +2147,7 @@ impl BrowserManager {
                 "Target.createTarget",
                 &CreateTargetParams {
                     url: target_url.to_string(),
+                    browser_context_id: self.browser_context_id(),
                 },
                 None,
             )
@@ -2330,7 +2493,12 @@ impl BrowserManager {
         self.client
             .send_command(
                 "Browser.grantPermissions",
-                Some(json!({ "permissions": permissions })),
+                Some(match self.browser_context_id() {
+                    Some(context_id) => {
+                        json!({ "permissions": permissions, "browserContextId": context_id })
+                    }
+                    None => json!({ "permissions": permissions }),
+                }),
                 None,
             )
             .await?;
@@ -2416,18 +2584,6 @@ impl BrowserManager {
             .to_string())
     }
 
-    pub async fn remove_script_to_evaluate(&self, identifier: &str) -> Result<(), String> {
-        let session_id = self.active_session_id()?;
-        self.client
-            .send_command(
-                "Page.removeScriptToEvaluateOnNewDocument",
-                Some(json!({ "identifier": identifier })),
-                Some(session_id),
-            )
-            .await?;
-        Ok(())
-    }
-
     pub async fn tab_switch_by_id(
         &mut self,
         tab_id: u32,
@@ -2471,6 +2627,7 @@ impl BrowserManager {
         self.add_page_with_activation(page, true);
     }
 
+    #[cfg(test)]
     /// Append a page WITHOUT activating it. Use for event-discovered targets
     /// (`Target.targetCreated` drained from the shared Chrome) so a tab the
     /// human opens never steals the agent's active tab or its binding.
@@ -2573,6 +2730,7 @@ impl BrowserManager {
         self.pages.len()
     }
 
+    #[cfg(test)]
     /// Returns the stable `tab_id` of the currently active page, if any.
     pub fn active_tab_id(&self) -> Option<u32> {
         self.pages.get(self.active_page_index).map(|p| p.tab_id)
@@ -2604,12 +2762,15 @@ impl BrowserManager {
     /// find the file. Without `eventsEnabled` Chrome sends only `Page.*`
     /// download events, which have no path.
     pub async fn enable_download_events(&self) {
-        let params = match self.download_path {
+        let mut params = match self.download_path {
             Some(ref path) => {
                 json!({ "behavior": "allow", "downloadPath": path, "eventsEnabled": true })
             }
             None => json!({ "behavior": "default", "eventsEnabled": true }),
         };
+        if let Some(context_id) = self.browser_context_id() {
+            params["browserContextId"] = json!(context_id);
+        }
         let _ = self
             .client
             .send_command("Browser.setDownloadBehavior", Some(params), None)
@@ -2771,6 +2932,7 @@ async fn initialize_lightpanda_manager(
             wedge_suspect: None,
             headless: true,
             product_checked: false,
+            shared: None,
         };
 
         match discover_and_attach_lightpanda_targets(&mut manager, deadline).await {
@@ -2882,6 +3044,7 @@ async fn initialize_obscura_manager(
             wedge_suspect: None,
             headless: true,
             product_checked: false,
+            shared: None,
         };
 
         match run_with_obscura_deadline(
@@ -3010,6 +3173,53 @@ async fn resolve_cdp_url(input: &str, headers: &[(String, String)]) -> Result<St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_browser_rejects_only_browser_wide_settings() {
+        let per_session = LaunchOptions {
+            shared_browser: true,
+            user_agent: Some("agent".to_string()),
+            color_scheme: Some("dark".to_string()),
+            download_path: Some("/tmp/downloads".to_string()),
+            storage_state: Some("state.json".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(shared_browser_conflict(&per_session), None);
+
+        let cases = [
+            (
+                LaunchOptions {
+                    headless: false,
+                    ..Default::default()
+                },
+                "--headed",
+            ),
+            (
+                LaunchOptions {
+                    proxy: Some("http://proxy:8080".to_string()),
+                    ..Default::default()
+                },
+                "--proxy",
+            ),
+            (
+                LaunchOptions {
+                    args: vec!["--no-sandbox".to_string()],
+                    ..Default::default()
+                },
+                "--args",
+            ),
+            (
+                LaunchOptions {
+                    restrict_webrtc: true,
+                    ..Default::default()
+                },
+                "--allowed-domains",
+            ),
+        ];
+        for (options, setting) in cases {
+            assert_eq!(shared_browser_conflict(&options), Some(setting));
+        }
+    }
 
     #[test]
     fn cdp_port_address_needs_an_explicit_port() {
@@ -3783,6 +3993,7 @@ mod tests {
             wedge_suspect: None,
             headless: true,
             product_checked: false,
+            shared: None,
         }
     }
 
@@ -3845,6 +4056,7 @@ mod tests {
             wedge_suspect: None,
             headless: true,
             product_checked: false,
+            shared: None,
         };
         manager.close().await.unwrap();
 
@@ -4444,14 +4656,14 @@ mod tests {
     }
 
     /// Calls the REAL production function `BrowserManager::register_discovered_page`
-    /// that both `apply_drained_events` drain handlers in cli/src/native/actions.rs
+    /// that both `apply_drained_events` drain handlers in cli/src/native/actions/daemon_state.rs
     /// call (the `Target.attachedToTarget` handler ~line 945 and the
     /// `Target.targetCreated` handler ~line 1082) — not a duplicated copy. This
     /// is the single decision point for finding #3: a foreign target discovered
     /// via a CDP event drain, while untracked, must never steal the active tab
     /// or overwrite the pin binding. If `register_discovered_page`'s internal
     /// call is reverted from `add_page_without_activation` to `add_page`, this
-    /// test fails, and BOTH actions.rs call sites are broken simultaneously
+    /// test fails, and BOTH daemon_state.rs call sites are broken simultaneously
     /// since there is no other path to diverge through.
     /// A pinned session whose sole tab closed (page list empty, tab_gone) must
     /// not have `ensure_page` silently create+bind a blank tab, which would

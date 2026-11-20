@@ -11,6 +11,7 @@ pub struct RefEntry {
     pub role: String,
     pub name: String,
     pub nth: Option<usize>,
+    #[allow(dead_code)]
     pub selector: Option<String>,
     pub frame_id: Option<String>,
     allow_role_fallback: bool,
@@ -39,6 +40,7 @@ impl RefMap {
         }
     }
 
+    #[cfg(test)]
     pub fn add(
         &mut self,
         ref_id: String,
@@ -87,28 +89,6 @@ impl RefMap {
                 selector: None,
                 frame_id: None,
                 allow_role_fallback: false,
-            },
-        );
-    }
-
-    pub fn add_selector(
-        &mut self,
-        ref_id: String,
-        selector: String,
-        role: &str,
-        name: &str,
-        nth: Option<usize>,
-    ) {
-        self.map.insert(
-            ref_id,
-            RefEntry {
-                backend_node_id: None,
-                role: role.to_string(),
-                name: name.to_string(),
-                nth,
-                selector: Some(selector),
-                frame_id: None,
-                allow_role_fallback: true,
             },
         );
     }
@@ -1018,7 +998,19 @@ const BLOCKER_AT_JS: &str = r#"(doc, el, x, y) => {
         if (anchored && anchored !== hit)
             desc += ' inside ' + anchored.tagName.toLowerCase() + '#' + anchored.id;
     }
-    return desc;
+    // The whole covering layer (the banner, not the text inside it that was hit) and the
+    // controls it shows, so the error can say what to click to get it out of the way.
+    let cover = hit;
+    while (cover.parentElement && !cover.parentElement.contains(el) && cover.parentElement !== d.body) cover = cover.parentElement;
+    const names = [];
+    for (const c of cover.querySelectorAll('button, a[href], [role=button], input[type=submit], input[type=button]')) {
+        const r = c.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        const t = (c.getAttribute('aria-label') || c.innerText || c.value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+        if (t && !names.includes(t)) names.push(t);
+        if (names.length >= 4) break;
+    }
+    return names.length ? desc + '\u0001' + names.join('\u0001') : desc;
 }"#;
 
 const CLICK_POINT_JS: &str = r#"(async (el, doc) => {
@@ -1162,10 +1154,24 @@ async fn resolve_by_selector(
     }
 }
 
+/// `blocker` is the covering element's description, then the names of the controls it shows,
+/// separated by U+0001.
 fn intercepted_error(target: &str, blocker: &str) -> String {
+    let mut parts = blocker.split('\u{1}');
+    let desc = parts.next().unwrap_or_default();
+    let controls: Vec<String> = parts.map(|name| format!("{name:?}")).collect();
+    if controls.is_empty() {
+        return format!(
+            "Element '{}' is covered by <{}> at its click point, so the input would land on that element instead. Dismiss or interact with the covering element first (it is often a dialog, banner, or sticky header).",
+            target, desc
+        );
+    }
     format!(
-        "Element '{}' is covered by <{}> at its click point, so the input would land on that element instead. Dismiss or interact with the covering element first (it is often a dialog, banner, or sticky header).",
-        target, blocker
+        "Element '{}' is covered by <{}>, which shows {}. Click the one that dismisses it (its ref is in your last snapshot), then retry in the same call: frob click <that ref> && frob click {}",
+        target,
+        desc,
+        controls.join(", "),
+        target
     )
 }
 
@@ -1724,6 +1730,20 @@ pub async fn get_element_styles(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_intercepted_error_names_the_covering_controls() {
+        let error = intercepted_error(
+            "@e10",
+            "div.overlay\u{1}Accept all\u{1}Reject non-essential",
+        );
+        assert!(error.contains(
+            "covered by <div.overlay>, which shows \"Accept all\", \"Reject non-essential\""
+        ));
+        assert!(error.ends_with("frob click <that ref> && frob click @e10"));
+        let bare = intercepted_error("@e10", "div#cover");
+        assert!(bare.contains("covered by <div#cover> at its click point"));
+    }
 
     fn ax(role: &str, name: &str, id: Option<i64>, ignored: bool) -> AXNode {
         let val = |t: &str, v: &str| AXValue {

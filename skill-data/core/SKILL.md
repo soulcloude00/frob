@@ -10,7 +10,9 @@ frob drives Chrome over CDP from the command line. A snapshot returns the page's
 
 ## Always use your own session
 
-Before your first command, get a session name for the task. It is stable for the worktree, so running it again prints the same name:
+If `FROB_SESSION` is already set in your environment, your harness chose a session for you: skip this section and run commands without `--session`.
+
+Otherwise, before your first command, get a session name for the task. It is stable for the worktree, so running it again prints the same name:
 
 ```bash
 frob session id --scope worktree --prefix task   # prints a name such as task-be5442ae6b6b
@@ -31,7 +33,7 @@ frob snapshot -i       # 4. Re-snapshot after any page change
 
 Refs stay valid for elements that survive a same-document update. Take a fresh snapshot after navigation or to observe page changes.
 
-To skip step 4, add `--observe` to the action (`frob --observe click @e3`). The action then waits for the page to settle and prints what changed: elements that appeared (`+`) or went (`-`) with fresh refs, the new page's snapshot after a navigation, and console and page errors. "no visible change on the page" means the action changed nothing you can act on.
+Actions such as `click`, `fill`, and `press` return once the page has settled (up to 1 second), so a `snapshot` chained after them shows the result. To skip step 4, add `--observe` to the action (`frob --observe click @e3`). The action then waits for the page to settle and prints what changed: elements that appeared (`+`) or went (`-`) with fresh refs, the new page's snapshot after a navigation, and console and page errors. "no visible change on the page" means the action changed nothing you can act on.
 
 Prefer snapshots. Take a screenshot only when the user asks for one, or for something the DOM cannot represent, such as a canvas. Never screenshot to check whether an element exists or the page finished loading. If the snapshot is missing an element you expect, the page is usually still loading: wait for it (`wait --text "<text you expect>"` or `wait @eN`, see [Waiting](#waiting)) and snapshot again. A snapshot is faster and uses far fewer tokens.
 
@@ -90,21 +92,17 @@ frob snapshot -i -c              # compact: drop empty structural nodes
 frob snapshot -s "#main"         # scope to a CSS selector
 frob snapshot -i --delta         # full state once, then only changes
 frob snapshot -i --collapse      # long page: fold the biggest sections to stay under 150 lines
-frob snapshot -i --collapse -s @e406   # open one folded section
+frob snapshot @e406              # open one folded section (pages past 800 lines fold on their own)
 frob snapshot -i --json          # machine-readable
 ```
 
-Snapshot output looks like:
+`snapshot -i` output looks like this. Each line is a role, the accessible name in quotes, and the ref to act on:
 
 ```
-Page: Example - Log in
-URL: https://example.com/login
-
-@e1 [heading] "Log in"
-@e2 [form]
-  @e3 [input type="email"] placeholder="Email"
-  @e4 [input type="password"] placeholder="Password"
-  @e5 [button type="submit"] "Continue"
+- heading "Log in" [level=1, ref=e1]
+- textbox "Email" [ref=e3]
+- textbox "Password" [ref=e4]
+- button "Continue" [ref=e2]
 ```
 
 To read text without refs:

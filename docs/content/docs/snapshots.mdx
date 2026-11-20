@@ -17,6 +17,7 @@ frob snapshot -i                 # Interactive elements only (recommended)
 frob snapshot -c                 # Compact (remove empty elements)
 frob snapshot -d 3               # Limit depth to 3 levels
 frob snapshot -s "#main"         # Scope to CSS selector
+frob snapshot @e9 -i             # Scope to a ref from an earlier snapshot
 frob snapshot -i -c -d 5         # Combine options
 ```
 
@@ -29,22 +30,60 @@ frob snapshot -i -c -d 5         # Combine options
     <tr><td><code>-u, --urls</code></td><td>Include href URLs for link elements</td></tr>
     <tr><td><code>-c, --compact</code></td><td>Remove empty structural elements</td></tr>
     <tr><td><code>-d, --depth</code></td><td>Limit tree depth</td></tr>
-    <tr><td><code>-s, --selector</code></td><td>Scope to CSS selector</td></tr>
+    <tr><td><code>-s, --selector</code></td><td>Scope to a CSS selector or ref. A bare argument such as <code>@e9</code> does the same</td></tr>
   </tbody>
 </table>
 
 ## Output format
 
-The default text output is compact and AI-friendly:
+Each line is an element: its role, its name in quotes, then attributes and the ref in brackets. A full snapshot of a small shop page:
+
+```bash
+frob snapshot
+# - navigation
+#   - link "Home" [ref=e1]
+#   - link [ref=e2] hint="img:cart"
+#     - image
+# - main
+#   - heading "Orders" [level=1, ref=e3]
+#   - paragraph
+#     - text "You have 2 open orders. See the"
+#     - link "help page" [ref=e5]
+#     - text "."
+#   - table
+#     - row
+#       - columnheader "Order" [ref=e7]
+#       - columnheader "Total" [ref=e8]
+#     - row
+#       - cell "Blue mug" [ref=e10]
+#       - cell "$12" [ref=e11]
+#       - cell [ref=e12] > button "Edit" [ref=e16]
+#   - textbox "Email" [ref=e6]
+#   - button "Subscribe" [ref=e4]
+```
+
+The same page with `-i`, which keeps only elements to act on, plus headings and landmarks:
 
 ```bash
 frob snapshot -i
-# Output:
-# @e1 [heading] "Example Domain" [level=1]
-# @e2 [button] "Submit"
-# @e3 [input type="email"] placeholder="Email"
-# @e4 [link] "Learn more"
+# - link "Home" [ref=e1]
+# - link [ref=e2] hint="img:cart"
+# - heading "Orders" [level=1, ref=e3]
+# - link "help page" [ref=e5]
+# - button "Edit" [ref=e16] hint="in:Blue mug $12"
+# - button "Edit" [ref=e17] hint="in:Red plate $9"
+# - textbox "Email" [ref=e6]
+# - button "Subscribe" [ref=e4]
 ```
+
+### What a snapshot leaves out
+
+A snapshot prints what an agent needs and leaves out what repeats or carries no meaning:
+
+- Wrappers with no role of their own (unnamed `generic` elements, layout tables, labels, and inline formatting such as `strong` or `code`) give way to their content.
+- Text that the page splits across inline elements is joined into one `text` line. A paragraph reads as text lines between its links.
+- A node whose only content is one run of text shows that text as its name, and a name that only repeats the node's content is printed once.
+- `-i` leaves out table cells and list items. Their refs still exist, so `get text @e10` works, and a full snapshot shows them.
 
 ## Control hints
 
@@ -69,8 +108,8 @@ Parts are joined with `; ` in this order, and each appears only when it is found
   <tbody>
     <tr><td><code>icon:</code></td><td>SVG sprite id from <code>&lt;use href="#..."&gt;</code>, the <code>&lt;svg&gt;</code> <code>id</code> or <code>data-icon</code>, or an icon library class such as <code>lucide-trash</code> or <code>fa-heart</code></td></tr>
     <tr><td><code>img:</code></td><td>File name of an image inside the control, without the extension</td></tr>
-    <tr><td><code>data-testid:</code>, <code>name:</code>, <code>id:</code></td><td>The first of those attributes set on the control, skipping values that look auto-generated</td></tr>
-    <tr><td><code>in:</code></td><td>Text of the nearest table row, list item, or article around the control</td></tr>
+    <tr><td><code>data-testid:</code>, <code>name:</code>, <code>id:</code></td><td>The first of those attributes set on the control whose value is made of words, such as <code>edit-btn</code>. Generated values such as <code>mwEek</code> are skipped</td></tr>
+    <tr><td><code>in:</code></td><td>Text of the nearest table row, list item, or article around the control. Interactive snapshots (<code>-i</code>) only, since a full snapshot already prints that text</td></tr>
   </tbody>
 </table>
 
@@ -127,10 +166,10 @@ Snapshots automatically detect and inline iframe content. Each `Iframe` node in 
 
 ```bash
 frob snapshot -i
-# @e1 [heading] "Checkout"
-# @e2 [Iframe] "payment-frame"
-#   @e3 [input] "Card number"
-#   @e4 [button] "Pay"
+# - heading "Checkout" [level=1, ref=e1]
+# - Iframe "payment-frame" [ref=e2]
+#   - textbox "Card number" [ref=e3]
+#   - button "Pay" [ref=e4]
 
 frob fill @e3 "4111111111111111"
 frob click @e4

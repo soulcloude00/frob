@@ -63,6 +63,18 @@ pnpm link --global
 frob install
 ```
 
+## Headless shell
+
+`chrome-headless-shell` is the headless-only build of Chrome for Testing. It is about half the size of Chrome on disk, starts faster, and uses less memory because it has no browser window, toolbar, or extension system.
+
+```bash
+frob install --headless-shell
+```
+
+Once it is installed, frob uses it for headless sessions that load no extensions. Headed sessions (`--headed`) and sessions with `--extension` need the full Chrome from `frob install`, so install both if you use them. `--executable-path` still overrides the choice.
+
+The headless shell is a different build from Chrome, so compare against full Chrome by passing its path to `--executable-path` if a page behaves differently. One known difference: a cross-origin iframe does not always get its own CDP target.
+
 ## Windows browser sessions
 
 Headless Chrome runs on a private Windows desktop. This prevents hidden browser windows from leaving visible rectangles on your desktop, including with affected Chrome 150 builds. It applies to bundled and custom Chrome executables and to windows created later in the session. Automation, screenshots, and GPU rendering continue through CDP.
@@ -197,7 +209,7 @@ Add to your instructions file:
 ```markdown
 ## Browser Automation
 
-Use `frob` for web automation. Run `frob --help` for all commands.
+Use `frob` for web automation. Run `frob --help` to get started.
 
 Core workflow:
 1. `frob open <url>` - Navigate to page

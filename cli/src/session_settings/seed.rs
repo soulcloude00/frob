@@ -93,6 +93,7 @@ impl Running {
             (Key::AllowFileAccess, "FROB_ALLOW_FILE_ACCESS"),
             (Key::IgnoreHttpsErrors, "FROB_IGNORE_HTTPS_ERRORS"),
             (Key::Webgpu, "FROB_WEBGPU"),
+            (Key::SharedBrowser, "FROB_SHARED_BROWSER"),
             (Key::NoXvfb, "FROB_NO_XVFB"),
             (Key::Debug, "FROB_DEBUG"),
         ];

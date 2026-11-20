@@ -133,7 +133,9 @@ frob wait --fn "(() => { const usable = (el) => { const style = getComputedStyle
 
 # Get form elements
 frob snapshot -i
-# Output: @e1 [input type="email"], @e2 [input type="password"], @e3 [button] "Sign In"
+# - textbox "Email" [ref=e1]
+# - textbox "Password" [ref=e2]
+# - button "Sign In" [ref=e3]
 
 # Fill credentials
 frob fill @e1 "user@example.com"

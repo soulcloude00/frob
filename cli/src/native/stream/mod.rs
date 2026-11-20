@@ -104,6 +104,7 @@ pub(super) struct StreamFrame {
     pub(super) json: String,
 }
 
+#[cfg(test)]
 /// Frame id inside an already-serialized frame. Only the legacy
 /// `broadcast_frame` needs it, once per publish; every other producer knows the
 /// id before serializing.
@@ -160,6 +161,7 @@ impl IdleActivity {
     }
 }
 
+#[cfg(test)]
 /// Frame metadata from CDP Page.screencastFrame events.
 #[derive(Debug, Clone)]
 pub struct FrameMetadata {
@@ -172,6 +174,7 @@ pub struct FrameMetadata {
     pub timestamp: u64,
 }
 
+#[cfg(test)]
 impl Default for FrameMetadata {
     fn default() -> Self {
         Self {
@@ -188,17 +191,21 @@ impl Default for FrameMetadata {
 
 pub struct StreamServer {
     port: u16,
+    #[allow(dead_code)]
     session_name: String,
     frame_tx: broadcast::Sender<String>,
+    #[allow(dead_code)]
     screencast_config: Arc<ScreencastConfig>,
     /// Latest-value channel for screencast frames. Slow clients skip straight
     /// to the newest frame instead of draining a stale ordered backlog.
     frame_watch: watch::Sender<Option<Arc<StreamFrame>>>,
+    #[allow(dead_code)]
     client_count: Arc<Mutex<usize>>,
     client_slot: Arc<RwLock<Option<Arc<CdpClient>>>>,
     /// The active CDP page session ID (from Target.attachToTarget).
     cdp_session_id: Arc<RwLock<Option<String>>>,
     client_notify: Arc<Notify>,
+    #[allow(dead_code)]
     /// Shared activity clock used by the daemon idle timer.
     idle_activity: Arc<IdleActivity>,
     screencasting: Arc<Mutex<bool>>,
@@ -213,18 +220,6 @@ pub struct StreamServer {
 }
 
 impl StreamServer {
-    pub async fn start(
-        preferred_port: u16,
-        client: Arc<CdpClient>,
-        session_id: String,
-    ) -> Result<Self, String> {
-        let client_slot = Arc::new(RwLock::new(Some(client)));
-        let idle_activity = Arc::new(IdleActivity::new());
-        let (server, _) =
-            Self::start_inner(preferred_port, client_slot, session_id, true, idle_activity).await?;
-        Ok(server)
-    }
-
     /// Start the stream server without a CDP client.
     /// Returns the server and a shared slot to set the client when the browser launches.
     /// Input messages are ignored until the client is set.
@@ -247,11 +242,6 @@ impl StreamServer {
             idle_activity,
         )
         .await
-    }
-
-    /// Notify the background CDP listener that the client has changed (browser launched/closed).
-    pub fn notify_client_changed(&self) {
-        self.client_notify.notify_one();
     }
 
     /// Check whether the server currently has active screencast running.
@@ -450,6 +440,7 @@ impl StreamServer {
         self.port
     }
 
+    #[cfg(test)]
     /// Broadcast a raw frame string (legacy). The caller owns the payload, so
     /// the id is read back out of it. A payload without one is delivered but
     /// never held for an ack.
@@ -460,6 +451,7 @@ impl StreamServer {
         })));
     }
 
+    #[cfg(test)]
     /// Broadcast a screencast frame with structured metadata.
     pub fn broadcast_screencast_frame(&self, base64_data: &str, metadata: &FrameMetadata) {
         let seq = next_frame_seq();
@@ -505,15 +497,6 @@ impl StreamServer {
             "viewportHeight": viewport_height,
             "engine": engine,
             "recording": rec,
-        });
-        let _ = self.frame_tx.send(msg.to_string());
-    }
-
-    /// Broadcast an error message to all connected clients.
-    pub fn broadcast_error(&self, message: &str) {
-        let msg = json!({
-            "type": "error",
-            "message": message,
         });
         let _ = self.frame_tx.send(msg.to_string());
     }
@@ -574,21 +557,6 @@ impl StreamServer {
             "text": text,
             "line": line,
             "column": column,
-            "timestamp": timestamp_ms(),
-        });
-        let _ = self.frame_tx.send(msg.to_string());
-    }
-
-    /// Broadcast the current tab list so the dashboard can render a tab bar.
-    /// Also caches the list so newly connected WebSocket clients receive it immediately.
-    pub async fn broadcast_tabs(&self, tabs: &[Value]) {
-        {
-            let mut guard = self.last_tabs.write().await;
-            *guard = tabs.to_vec();
-        }
-        let msg = json!({
-            "type": "tabs",
-            "tabs": tabs,
             "timestamp": timestamp_ms(),
         });
         let _ = self.frame_tx.send(msg.to_string());

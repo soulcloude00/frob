@@ -1044,6 +1044,12 @@ fn parse_command_inner(
                     }
                     "-s" | "--selector" => {
                         if let Some(s) = rest.get(i + 1) {
+                            if obj.contains_key("selector") {
+                                return Err(ParseError::InvalidValue {
+                                    message: format!("snapshot takes one scope; got a second: {s}"),
+                                    usage: "snapshot [@ref | -s <selector>] [-i] [-c] [-d <n>]",
+                                });
+                            }
                             obj.insert("selector".to_string(), json!(s));
                             i += 1;
                         }
@@ -1053,10 +1059,8 @@ fn parse_command_inner(
                     }
                     "--collapse" => {
                         // Optional line budget; a following non-number is the next flag.
-                        let budget = rest
-                            .get(i + 1)
-                            .and_then(|n| n.parse::<u64>().ok())
-                            .filter(|&n| n > 0);
+                        // 0 turns folding off, including the default budget.
+                        let budget = rest.get(i + 1).and_then(|n| n.parse::<u64>().ok());
                         if budget.is_some() {
                             i += 1;
                         }
@@ -1068,6 +1072,16 @@ fn parse_command_inner(
                     "--full" => {
                         obj.insert("full".to_string(), json!(true));
                         obj.insert("delta".to_string(), json!(true));
+                    }
+                    // `snapshot @e9` or `snapshot "#main"` scopes like `-s`; agents write it that way.
+                    scope if !scope.starts_with('-') => {
+                        if obj.contains_key("selector") {
+                            return Err(ParseError::InvalidValue {
+                                message: format!("snapshot takes one scope; got a second: {scope}"),
+                                usage: "snapshot [@ref | -s <selector>] [-i] [-c] [-d <n>]",
+                            });
+                        }
+                        obj.insert("selector".to_string(), json!(scope));
                     }
                     _ => reject_batch_global_flag(batch_item, rest[i])?,
                 }
@@ -3993,6 +4007,7 @@ mod tests {
             hide_scrollbars: true,
             webgpu: false,
             no_webmcp: false,
+            shared_browser: false,
             no_xvfb: false,
             no_xvfb_set: false,
             device: None,
@@ -4025,6 +4040,7 @@ mod tests {
             cli_headed: false,
             cli_webgpu: false,
             cli_no_webmcp: false,
+            cli_shared_browser: false,
             cli_auto_connect: false,
             no_auto_connect: false,
             cli_restore: false,
@@ -4053,6 +4069,7 @@ mod tests {
             verbose: false,
             quiet: false,
             input_mode: "instant".to_string(),
+            observe: None,
         }
     }
 
@@ -5496,9 +5513,23 @@ mod tests {
         let cmd = parse_command(&args("snapshot --collapse 80 -i"), &default_flags()).unwrap();
         assert_eq!(cmd["collapse"], 80);
         assert_eq!(cmd["interactive"], true);
+        let cmd = parse_command(&args("snapshot --collapse 0 -i"), &default_flags()).unwrap();
+        assert_eq!(cmd["collapse"], 0);
+        assert!(cmd.get("selector").is_none());
         let cmd = parse_command(&args("snapshot --collapse -s @e5"), &default_flags()).unwrap();
         assert_eq!(cmd["collapse"], DEFAULT_COLLAPSE_LINES);
         assert_eq!(cmd["selector"], "@e5");
+    }
+
+    #[test]
+    fn test_snapshot_positional_scope() {
+        let cmd = parse_command(&args("snapshot @e9 -i"), &default_flags()).unwrap();
+        assert_eq!(cmd["selector"], "@e9");
+        assert_eq!(cmd["interactive"], true);
+        let cmd = parse_command(&args("snapshot -i #main"), &default_flags()).unwrap();
+        assert_eq!(cmd["selector"], "#main");
+        assert!(parse_command(&args("snapshot @e9 -s @e3"), &default_flags()).is_err());
+        assert!(parse_command(&args("snapshot @e9 @e3"), &default_flags()).is_err());
     }
 
     #[test]

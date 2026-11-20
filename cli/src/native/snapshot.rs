@@ -136,29 +136,6 @@ const CONTENT_ROLES: &[&str] = &[
     "navigation",
 ];
 
-const STRUCTURAL_ROLES: &[&str] = &[
-    "generic",
-    "group",
-    "list",
-    "table",
-    "row",
-    "rowgroup",
-    "grid",
-    "treegrid",
-    "menu",
-    "menubar",
-    "toolbar",
-    "tablist",
-    "tree",
-    "directory",
-    "document",
-    "application",
-    "presentation",
-    "none",
-    "WebArea",
-    "RootWebArea",
-];
-
 const ZERO_WIDTH_CHARS: &[char] = &[
     '\u{FEFF}', // BOM / Zero Width No-Break Space
     '\u{200B}', // Zero Width Space
@@ -200,6 +177,7 @@ struct TreeNode {
     selected: Option<bool>,
     disabled: Option<bool>,
     required: Option<bool>,
+    pressed: Option<String>,
     value_text: Option<String>,
     backend_node_id: Option<i64>,
     children: Vec<usize>,
@@ -224,6 +202,7 @@ impl TreeNode {
             selected: None,
             disabled: None,
             required: None,
+            pressed: None,
             value_text: None,
             backend_node_id: None,
             children: Vec::new(),
@@ -246,6 +225,7 @@ impl TreeNode {
         self.selected = None;
         self.disabled = None;
         self.required = None;
+        self.pressed = None;
         self.value_text = None;
         self.backend_node_id = None;
         self.children.clear();
@@ -626,7 +606,9 @@ pub async fn take_snapshot(
         })
         .collect();
     crate::timing::mark(&format!("snap hints ({} nodes)", hint_nodes.len()));
-    for (idx, hint) in call_on_nodes(client, effective_session_id, &hint_nodes, HINT_FUNCTION).await
+    let hint_function = HINT_FUNCTION.replace("NEAR &&", &format!("{} &&", options.interactive));
+    for (idx, hint) in
+        call_on_nodes(client, effective_session_id, &hint_nodes, &hint_function).await
     {
         tree_nodes[idx].hint = Some(hint);
     }
@@ -744,7 +726,8 @@ pub async fn take_snapshot(
     Ok(trimmed)
 }
 
-/// Describes a control from its icon, image file, stable attribute, and nearest row.
+/// Describes a control from its icon, image file, stable attribute, and nearest row. `NEAR` is
+/// replaced with whether to include the row: a full snapshot already prints the text around it.
 const HINT_FUNCTION: &str = r#"function() {
     const tail = (s, sep) => (s || '').split(sep).pop();
     const use = this.querySelector('svg use');
@@ -756,11 +739,18 @@ const HINT_FUNCTION: &str = r#"function() {
         : mark ? mark.getAttribute('class').split(/\s+/).filter((c) => /^(lucide|fa|bi|mdi|ri|ti|icon)-/.test(c)).join(' ')
         : '';
     const file = img ? tail(img.getAttribute('src').split(/[?#]/)[0], '/').replace(/\.\w+$/, '') : '';
-    const key = ['data-testid', 'name', 'id'].find((k) => /^(?!.*\d{3})[a-z][\w-]*$/i.test(this.getAttribute(k) || ''));
-    const row = this.closest('tr, li, article, [role=row], [role=listitem]');
+    // Generated ids ("mwEek", "r-3x9f") name nothing; keep ones made of words, like "edit-btn".
+    const words = (v) => {
+        const parts = /^[a-z][\w-]*$/i.test(v) && !/\d{3}/.test(v) ? v.split(/[-_\d]+|(?<=[a-z])(?=[A-Z])|(?=[A-Z][a-z])/).filter(Boolean) : [];
+        return parts.length > 0 && parts.some((w) => /[aeiouy]/i.test(w))
+            && parts.every((w) => /^([A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{2,})$/.test(w));
+    };
+    const key = ['data-testid', 'name', 'id'].find((k) => words(this.getAttribute(k) || ''));
+    const row = NEAR && this.closest('tr, li, article, [role=row], [role=listitem]');
     const near = row ? row.innerText.replace(this.innerText, '').replace(/\s+/g, ' ').trim() : '';
+    const cut = (s) => s.length <= 48 ? s : s.slice(0, 48).replace(/\s+\S*$/, '') + '…';
     return [icon && 'icon:' + icon, file && 'img:' + file, key && key + ':' + this.getAttribute(key), near && 'in:' + near]
-        .filter(Boolean).map((s) => s.slice(0, 48)).join('; ');
+        .filter(Boolean).map(cut).join('; ');
 }"#;
 
 /// Calls `function` on each DOM node in parallel and returns the non-empty strings it produced.
@@ -901,10 +891,12 @@ async fn find_cursor_interactive_elements(
             if (parent && getComputedStyle(parent).cursor === 'pointer') continue;
         }
 
-        var text = (el.textContent || '').trim().slice(0, 100);
-
         var rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) continue;
+
+        // innerText keeps the breaks between blocks that textContent runs together.
+        var text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text.length > 100) text = text.slice(0, 100).replace(/\s+\S*$/, '') + '…';
 
         // Detect hidden radio/checkbox inputs inside this element (common pattern:
         // <label> wrapping a display:none <input type="radio"> styled as a card).
@@ -1172,7 +1164,7 @@ fn build_tree(nodes: &[AXNode]) -> (Vec<TreeNode>, Vec<usize>) {
         let name = extract_ax_string(&node.name);
         let value_text = extract_ax_string_opt(&node.value);
 
-        let (level, checked, expanded, selected, disabled, required) =
+        let (level, checked, expanded, selected, disabled, required, pressed) =
             extract_properties(&node.properties);
 
         if (node.ignored.unwrap_or(false) && role != "RootWebArea") || role == "InlineTextBox" {
@@ -1190,6 +1182,7 @@ fn build_tree(nodes: &[AXNode]) -> (Vec<TreeNode>, Vec<usize>) {
             selected,
             disabled,
             required,
+            pressed,
             value_text,
             backend_node_id: node.backend_d_o_m_node_id,
             children: Vec::new(),
@@ -1298,6 +1291,156 @@ fn build_tree(nodes: &[AXNode]) -> (Vec<TreeNode>, Vec<usize>) {
     (tree_nodes, root_indices)
 }
 
+/// Formatting roles whose text reads as part of the surrounding sentence.
+const INLINE_ROLES: &[&str] = &[
+    "emphasis",
+    "strong",
+    "superscript",
+    "subscript",
+    "mark",
+    "code",
+    "time",
+    "Abbr",
+    "insertion",
+    "deletion",
+];
+
+/// Roles Chrome gives to the parts of a layout (non-data) table. They carry no meaning.
+const LAYOUT_ROLES: &[&str] = &["LayoutTable", "LayoutTableRow", "LayoutTableCell"];
+
+/// What a node renders under it once wrappers are flattened: a child to render, or a run of text.
+enum Item {
+    Node(usize),
+    Text(String),
+}
+
+/// How text that follows joins the run before it.
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+enum Glue {
+    /// Same inline run: concatenate as is.
+    Raw,
+    /// Across an ignored node: concatenate, adding a space where words would touch.
+    Space,
+    /// Across a block wrapper: start a new line.
+    Break,
+}
+
+struct Items {
+    list: Vec<Item>,
+    glue: Glue,
+}
+
+impl Items {
+    fn text(&mut self, text: &str) {
+        if let (Some(Item::Text(prev)), true) = (self.list.last_mut(), self.glue != Glue::Break) {
+            if self.glue == Glue::Space && needs_space(prev, text) {
+                prev.push(' ');
+            }
+            prev.push_str(text);
+        } else {
+            self.list.push(Item::Text(text.to_string()));
+        }
+        self.glue = Glue::Raw;
+    }
+
+    fn boundary(&mut self, glue: Glue) {
+        if glue > self.glue {
+            self.glue = glue;
+        }
+    }
+}
+
+fn needs_space(prev: &str, next: &str) -> bool {
+    let (Some(last), Some(first)) = (prev.chars().last(), next.chars().next()) else {
+        return false;
+    };
+    !(last.is_whitespace()
+        || first.is_whitespace()
+        || "([{/-–—'\"‘“".contains(last)
+        || ")]},.;:!?/%'\"’”".contains(first))
+}
+
+/// Flattens `idx`'s children into what the snapshot shows: wrappers without meaning (ignored
+/// nodes, unnamed generics, layout tables, inline formatting) give way to their content, and
+/// adjacent text joins into one run. Nodes with refs always stay, so every ref is still printed.
+fn collect_items(nodes: &[TreeNode], idx: usize, items: &mut Items) {
+    for &child in &nodes[idx].children {
+        let c = &nodes[child];
+        let role = c.role.as_str();
+        match role {
+            "" => {
+                items.boundary(Glue::Space);
+                collect_items(nodes, child, items);
+                items.boundary(Glue::Space);
+            }
+            "StaticText" if normalize_snapshot_name(&c.name).trim().is_empty() => {
+                items.boundary(Glue::Space)
+            }
+            "StaticText" => items.text(&c.name),
+            "LineBreak" => items.boundary(Glue::Space),
+            "ListMarker" => {
+                let marker = c.name.trim();
+                // Bullets carry nothing; a number ("3.") is kept in front of the item's text.
+                if marker.chars().any(char::is_alphanumeric) {
+                    items.text(marker);
+                    items.boundary(Glue::Space);
+                }
+            }
+            _ if c.has_ref => items.list.push(Item::Node(child)),
+            _ if INLINE_ROLES.contains(&role) => {
+                if c.children.is_empty() {
+                    items.text(&c.name);
+                } else {
+                    collect_items(nodes, child, items);
+                }
+            }
+            // A label gives way to the controls it names, minus the text they already carry.
+            "LabelText" => {
+                let mut inner = Items {
+                    list: Vec::new(),
+                    glue: Glue::Break,
+                };
+                collect_items(nodes, child, &mut inner);
+                let names: Vec<String> = inner
+                    .list
+                    .iter()
+                    .filter_map(|item| match item {
+                        Item::Node(i) => Some(squash(&nodes[*i].name)),
+                        Item::Text(_) => None,
+                    })
+                    .collect();
+                items.boundary(Glue::Break);
+                for item in inner.list {
+                    match item {
+                        Item::Text(text) if names.contains(&squash(&text)) => {}
+                        Item::Text(text) => {
+                            items.text(&text);
+                            items.boundary(Glue::Break);
+                        }
+                        node => items.list.push(node),
+                    }
+                }
+                items.boundary(Glue::Break);
+            }
+            _ if LAYOUT_ROLES.contains(&role) || (role == "generic" && c.name.is_empty()) => {
+                items.boundary(Glue::Break);
+                collect_items(nodes, child, items);
+                items.boundary(Glue::Break);
+            }
+            _ => items.list.push(Item::Node(child)),
+        }
+    }
+}
+
+/// Text with all whitespace removed, to compare a name with the text it was computed from:
+/// Chrome joins blocks with spaces or newlines that the separate text nodes do not have.
+fn squash(text: &str) -> String {
+    normalize_snapshot_name(text)
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect()
+}
+
 fn render_tree(
     nodes: &[TreeNode],
     idx: usize,
@@ -1307,15 +1450,13 @@ fn render_tree(
 ) {
     let node = &nodes[idx];
 
-    // Reduce unnecessary indentation and rendering
-    if node.role.is_empty()
-        || (node.role == "generic" && !node.has_ref && node.children.len() <= 1)
-        || (node.role == "StaticText" && normalize_snapshot_name(&node.name).trim().is_empty())
-    {
-        // Ignored node -- still render children
-        for &child in &node.children {
-            render_tree(nodes, child, indent, output, options);
-        }
+    if node.role.is_empty() {
+        let mut items = Items {
+            list: Vec::new(),
+            glue: Glue::Break,
+        };
+        collect_items(nodes, idx, &mut items);
+        render_items(nodes, &items.list, indent, output, options);
         return;
     }
 
@@ -1327,19 +1468,22 @@ fn render_tree(
 
     let role = &node.role;
 
-    // Skip root WebArea wrapper
-    if role == "RootWebArea" || role == "WebArea" {
-        for &child in &node.children {
-            render_tree(nodes, child, indent, output, options);
-        }
-        return;
-    }
+    let mut items = Items {
+        list: Vec::new(),
+        glue: Glue::Break,
+    };
+    collect_items(nodes, idx, &mut items);
+    let mut items = items.list;
 
-    if options.interactive && !node.has_ref {
-        // In interactive mode, skip non-interactive but render children
-        for &child in &node.children {
-            render_tree(nodes, child, indent, output, options);
-        }
+    // The root wrapper, and in an interactive snapshot every node without a ref, give way to
+    // their content. So do table cells and list items: they hold refs for `get text`, but the
+    // controls inside them are what an interactive snapshot is for.
+    let hidden_in_interactive = options.interactive
+        && (!node.has_ref
+            || (node.cursor_info.is_none()
+                && (TABLE_CELL_ROLES.contains(&role.as_str()) || role == "listitem")));
+    if role == "RootWebArea" || role == "WebArea" || hidden_in_interactive {
+        render_items(nodes, &items, indent, output, options);
         return;
     }
 
@@ -1347,11 +1491,44 @@ fn render_tree(
     let mut line = format!("{}- {}", prefix, role);
 
     // Use ARIA name if available, only fall back to cursor-interactive textContent in interactive mode since their visible text in child nodes is filtered out
-    let unescaped_display_name = if options.interactive {
+    let mut unescaped_display_name = if options.interactive {
         node.label()
     } else {
         node.name.as_str()
     };
+    if !options.interactive {
+        let all_text = items.iter().all(|item| matches!(item, Item::Text(_)));
+        if unescaped_display_name.is_empty() {
+            // A node whose only content is one run of text shows it as its name.
+            if let [Item::Text(text)] = items.as_slice() {
+                if node.value_text.as_deref().is_none_or(str::is_empty) {
+                    let text = text.trim().to_string();
+                    items.clear();
+                    let shown = format!(
+                        "{line} {}",
+                        serde_json::to_string(&normalize_snapshot_name(&text)).unwrap_or_default()
+                    );
+                    return render_node_line(nodes, node, shown, &items, indent, output, options);
+                }
+            }
+        } else if !items.is_empty() {
+            // A name computed from the content repeats it: keep whichever carries more.
+            let content: String = items
+                .iter()
+                .map(|item| match item {
+                    Item::Text(text) => text.as_str(),
+                    Item::Node(child) => nodes[*child].name.as_str(),
+                })
+                .collect();
+            if squash(&content) == squash(unescaped_display_name) {
+                if all_text {
+                    items.clear();
+                } else {
+                    unescaped_display_name = "";
+                }
+            }
+        }
+    }
     if !unescaped_display_name.is_empty() {
         if let Ok(display_name) =
             serde_json::to_string(&normalize_snapshot_name(unescaped_display_name))
@@ -1360,7 +1537,19 @@ fn render_tree(
         }
     }
 
-    // Properties
+    render_node_line(nodes, node, line, &items, indent, output, options);
+}
+
+/// Finishes a node's line (attributes, hint, value) after its role and name, then renders its content.
+fn render_node_line(
+    nodes: &[TreeNode],
+    node: &TreeNode,
+    mut line: String,
+    items: &[Item],
+    indent: usize,
+    output: &mut String,
+    options: &SnapshotOptions,
+) {
     let mut attrs = Vec::new();
 
     if let Some(level) = node.level {
@@ -1368,6 +1557,9 @@ fn render_tree(
     }
     if let Some(ref checked) = node.checked {
         attrs.push(format!("checked={}", checked));
+    }
+    if let Some(ref pressed) = node.pressed {
+        attrs.push(format!("pressed={}", pressed));
     }
     if let Some(expanded) = node.expanded {
         attrs.push(format!("expanded={}", expanded));
@@ -1423,8 +1615,32 @@ fn render_tree(
     output.push_str(&line);
     output.push('\n');
 
-    for &child in &node.children {
-        render_tree(nodes, child, indent + 1, output, options);
+    render_items(nodes, items, indent + 1, output, options);
+}
+
+fn render_items(
+    nodes: &[TreeNode],
+    items: &[Item],
+    indent: usize,
+    output: &mut String,
+    options: &SnapshotOptions,
+) {
+    for item in items {
+        match item {
+            Item::Node(child) => render_tree(nodes, *child, indent, output, options),
+            Item::Text(_) if options.interactive => {}
+            Item::Text(_) if options.depth.is_some_and(|max| indent > max) => {}
+            Item::Text(text) => {
+                let text = normalize_snapshot_name(text);
+                let text = text.trim();
+                if !text.is_empty() {
+                    output.push_str(&"  ".repeat(indent));
+                    output.push_str("- text ");
+                    output.push_str(&serde_json::to_string(text).unwrap_or_default());
+                    output.push('\n');
+                }
+            }
+        }
     }
 }
 
@@ -1493,7 +1709,7 @@ fn merge_wrappers(tree: &str) -> String {
             dedent.pop();
         }
         let shift: usize = dedent.iter().map(|&(_, by)| by).sum();
-        let merged = (|| {
+        let merged = unnamed_wrapper(&lines, i, ind).or_else(|| {
             let (pind, head, name, rest) = split_snapshot_line(line)?;
             let (cind, chead, cname, crest) = split_snapshot_line(lines.get(i + 1)?)?;
             let inner = &name[1..name.len() - 1];
@@ -1507,7 +1723,7 @@ fn merge_wrappers(tree: &str) -> String {
                 .find(|&d| d <= cind)
                 .is_some_and(|d| d == cind);
             (!has_sibling).then(|| format!("{head}{rest} > {} {cname}{crest}", &chead[2..]))
-        })();
+        });
         match merged {
             Some(text) => {
                 out.push(format!("{}{}", " ".repeat(ind - shift), text));
@@ -1526,6 +1742,32 @@ fn merge_wrappers(tree: &str) -> String {
         joined.push('\n');
     }
     joined
+}
+
+/// Folds an unnamed line that holds nothing but attributes into its only child, as in a table
+/// header cell around a link: `- rowheader [ref=e3] > link "Version" [ref=e4]`.
+fn unnamed_wrapper(lines: &[&str], i: usize, ind: usize) -> Option<String> {
+    let indent_of = |l: &str| l.len() - l.trim_start_matches(' ').len();
+    let body = lines[i][ind..].strip_prefix("- ")?;
+    let (role, attrs) = body.split_once(' ').unwrap_or((body, ""));
+    let plain = attrs.is_empty()
+        || (attrs.starts_with('[')
+            && attrs.ends_with(']')
+            && attrs[1..].find(']') == Some(attrs.len() - 2));
+    if !plain || role.ends_with(':') {
+        return None;
+    }
+    let child = lines.get(i + 1)?;
+    let cind = indent_of(child);
+    if cind != ind + 2 || !child[cind..].starts_with("- ") {
+        return None;
+    }
+    let has_sibling = lines[i + 2..]
+        .iter()
+        .map(|l| indent_of(l))
+        .find(|&d| d <= cind)
+        .is_some_and(|d| d == cind);
+    (!has_sibling).then(|| format!("- {} > {}", body, &child[cind + 2..]))
 }
 
 /// Sections smaller than this stay open: folding them saves little and costs the agent a call.
@@ -1610,7 +1852,7 @@ fn collapse_sections(tree: &str, budget: usize) -> String {
         out.push('\n');
     }
     out.push_str(&format!(
-        "({count} sections collapsed to keep this under {budget} lines. Expand one with `snapshot -i --collapse -s @<ref>`.)"
+        "({count} sections collapsed to keep this under {budget} lines. Open one with `snapshot @<ref>`.)"
     ));
     out
 }
@@ -1695,6 +1937,7 @@ type NodeProperties = (
     Option<bool>,   // selected
     Option<bool>,   // disabled
     Option<bool>,   // required
+    Option<String>, // pressed
 );
 
 fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
@@ -1704,6 +1947,7 @@ fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
     let mut selected = None;
     let mut disabled = None;
     let mut required = None;
+    let mut pressed = None;
 
     if let Some(properties) = props {
         for prop in properties {
@@ -1730,14 +1974,25 @@ fn extract_properties(props: &Option<Vec<AXProperty>>) -> NodeProperties {
                 "required" => {
                     required = prop.value.value.as_ref().and_then(|v| v.as_bool());
                 }
+                // aria-pressed on a toggle button: "true", "false", or "mixed".
+                "pressed" => {
+                    pressed = prop.value.value.as_ref().map(|v| match v {
+                        Value::String(s) => s.clone(),
+                        Value::Bool(b) => b.to_string(),
+                        _ => "false".to_string(),
+                    });
+                }
                 _ => {}
             }
         }
     }
 
-    (level, checked, expanded, selected, disabled, required)
+    (
+        level, checked, expanded, selected, disabled, required, pressed,
+    )
 }
 
+#[cfg(test)]
 /// Build the set of texts to de-duplicate cursor-interactive elements against.
 ///
 /// All ref-bearing ARIA tree nodes have their names stored in `ref_map` during
@@ -1824,6 +2079,17 @@ mod tests {
     }
 
     #[test]
+    fn test_merge_wrappers_folds_unnamed_parent_into_only_child() {
+        let tree = "- row\n  - rowheader [ref=e1]\n    - link \"Version\" [ref=e2]\n  - cell [ref=e3]\n    - text \"1.0\"\n    - link \"[2]\" [ref=e4]";
+        assert_eq!(
+            merge_wrappers(tree),
+            "- row\n  - rowheader [ref=e1] > link \"Version\" [ref=e2]\n  - cell [ref=e3]\n    - text \"1.0\"\n    - link \"[2]\" [ref=e4]"
+        );
+        let hinted = "- link [ref=e1] hint=\"img:logo\"\n  - image";
+        assert_eq!(merge_wrappers(hinted), hinted);
+    }
+
+    #[test]
     fn test_collapse_sections_folds_biggest_first_and_keeps_small_pages() {
         let mut tree = String::from("- link \"Home\" [ref=e1]\n- region \"Refs\" [ref=e2]\n");
         for n in 0..20 {
@@ -1838,7 +2104,9 @@ mod tests {
         assert!(out.contains("- region \"Refs\" [ref=e2] (collapsed: 20 refs)\n"));
         assert!(out.contains("  - link \"i0\" [ref=e40]"));
         assert!(!out.contains("r0"));
-        assert!(out.ends_with("(1 sections collapsed to keep this under 20 lines. Expand one with `snapshot -i --collapse -s @<ref>`.)"));
+        assert!(out.ends_with(
+            "(1 sections collapsed to keep this under 20 lines. Open one with `snapshot @<ref>`.)"
+        ));
         // Within budget: unchanged.
         assert_eq!(collapse_sections(&tree, 100), tree);
     }

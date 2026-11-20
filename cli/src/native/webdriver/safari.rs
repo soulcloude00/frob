@@ -4,6 +4,7 @@ use std::time::Duration;
 
 pub struct SafariDriverProcess {
     child: Child,
+    #[allow(dead_code)]
     pub port: u16,
 }
 

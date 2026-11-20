@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 /// Abstract backend for browser automation. CDP (Chromium) and WebDriver
-/// (Safari/iOS) share this interface so actions.rs can remain backend-agnostic
+/// (Safari/iOS) share this interface so the actions module can remain backend-agnostic
 /// in the future.
 // async_trait adds #[must_use] to methods returning an already must_use future.
 #[allow(clippy::double_must_use)]
@@ -21,23 +21,6 @@ pub trait BrowserBackend: Send + Sync {
     async fn forward(&self) -> Result<(), String>;
     async fn reload(&self) -> Result<(), String>;
     async fn get_cookies(&self) -> Result<Value, String>;
-    fn backend_type(&self) -> &str;
-
-    fn supports(&self, feature: &str) -> bool {
-        match feature {
-            "navigate" | "evaluate" | "screenshot" | "click" | "fill" => true,
-            "screencast" | "tracing" | "network_intercept" | "cdp" => self.backend_type() == "cdp",
-            _ => false,
-        }
-    }
-
-    fn unsupported_error(&self, action: &str) -> String {
-        format!(
-            "Action '{}' is not supported on the {} backend",
-            action,
-            self.backend_type()
-        )
-    }
 }
 
 /// WebDriver implementation of BrowserBackend
@@ -117,10 +100,6 @@ impl BrowserBackend for WebDriverBackend {
 
     async fn get_cookies(&self) -> Result<Value, String> {
         self.client.get_cookies().await
-    }
-
-    fn backend_type(&self) -> &str {
-        "webdriver"
     }
 }
 

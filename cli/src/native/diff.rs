@@ -160,6 +160,7 @@ pub fn diff_text(a: &str, b: &str) -> Value {
     })
 }
 
+#[cfg(test)]
 pub fn diff_unified(a: &str, b: &str) -> String {
     diff_snapshots(a, b).diff
 }

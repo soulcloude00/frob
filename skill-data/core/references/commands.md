@@ -65,6 +65,7 @@ frob snapshot -i         # Interactive elements only (recommended)
 frob snapshot -c         # Compact output
 frob snapshot -d 3       # Limit depth to 3
 frob snapshot -s "#main" # Scope to CSS selector
+frob snapshot @e9 -i     # Scope to a ref (same as -s @e9)
 frob snapshot --delta     # Full state once, then bounded structural deltas
 frob snapshot --delta --full # Force full state and refresh baseline
 ```
@@ -260,7 +261,7 @@ frob network route <url> --abort      # Block requests
 frob network route <url> --body '{}'  # Mock response
 frob network route <url> --body '{}' --allow-origin https://www.example.com  # Mock a cross-origin API for that page
 frob network unroute [url]            # Remove routes
-frob network requests                 # View tracked requests
+frob network requests                 # View tracked requests (the log keeps the most recent 10,000)
 frob network requests --filter api    # Filter requests
 frob network request <requestId>      # Full request/response detail incl. body
 frob network har start                # Record traffic (embeds text response bodies)
@@ -343,9 +344,9 @@ Iframes are detected automatically during snapshots. When the main-frame snapsho
 
 ```bash
 frob snapshot -i
-# @e3 [Iframe] "payment-frame"
-#   @e4 [input] "Card number"
-#   @e5 [button] "Pay"
+# - Iframe "payment-frame" [ref=e3]
+#   - textbox "Card number" [ref=e4]
+#   - button "Pay" [ref=e5]
 
 # Interact directly — refs inside iframes already work
 frob fill @e4 "4111111111111111"
@@ -474,6 +475,8 @@ The dashboard runs on port 4848 by default, independent of browser sessions. It 
 
 `frob install` downloads Chrome for Testing. On macOS versions below 13, the command stops before the download and prints instructions to update macOS or install Chrome manually. If `sw_vers -productVersion` is unavailable, exits with an error, returns no version, or returns a malformed version, the command reports a detection error and stops before making a network request. On Linux, `--with-deps` also installs system dependencies and exits nonzero if the package manager cannot install every required browser library.
 
+`frob install --headless-shell` downloads `chrome-headless-shell`, the headless-only build: about half the size, faster to start, less memory. Once installed, headless sessions without extensions use it; `--headed` and `--extension` sessions need the full Chrome from `frob install`.
+
 At launch, frob uses the browser from `frob install` first. When that is missing, it falls back to a system Chrome (on macOS, Chrome, Chrome Canary, Chromium, and Brave in `/Applications`, then in `~/Applications`), then to the Puppeteer and Playwright caches.
 
 ## Diagnostics
@@ -552,6 +555,7 @@ frob --json ...              # JSON output for parsing
 frob --headed ...            # Show browser window (not headless; on displayless Linux an Xvfb display starts automatically)
 frob --webgpu ...            # Enable WebGPU (SwiftShader software Vulkan on Linux, no GPU needed)
 frob --no-webmcp ...         # Disable default experimental WebMCP Chrome features (or FROB_NO_WEBMCP env)
+frob --shared-browser ...    # Isolated context in one Chrome shared by all --shared-browser sessions; less memory per session (see references/session-management.md)
 frob --cdp <port|url> ...    # Connect via CDP; root query slash is optional
 frob --cdp <url> --cdp-headers '{"Authorization":"Bearer <token>"}' ...  # Auth headers for discovery and handshake
 frob --pin-tab ...           # Pin the session to its bound tab (strict tab binding)
@@ -561,7 +565,7 @@ frob --proxy <url> ...       # Use proxy server
 frob --proxy-bypass <hosts>  # Hosts to bypass proxy
 frob --headers <json> ...    # HTTP headers scoped to URL's origin
 frob --executable-path <p>   # Custom browser executable
-frob --args "--a,--b=x,y"    # Launch args; commas inside a value are kept
+frob --args "--a,--b=x,y"    # Launch args; commas inside a value are kept; --enable-features and --disable-features merge with frob's own lists
 frob --extension <path> ...  # Load browser extension (repeatable)
 frob --ignore-https-errors   # Ignore SSL certificate errors
 frob --ca-cert <path>        # Trust a CA for CLI requests, and in local Chromium on Linux (install --with-deps provides certutil)
@@ -578,7 +582,8 @@ frob --restore-save <policy> # auto (default), always, or never
 frob --namespace <name> ...  # Isolate daemon sockets and restore-state directories
 frob --idle-timeout <time>   # Daemon idle shutdown (default 1h; 0 disables)
 frob --relaunch ...          # Relaunch the browser even when no setting changed; once per batch
-frob --help                  # Show help (-h)
+frob --help                  # Short primer (-h)
+frob --help --all            # Every command and option
 frob --version               # Show version (-V)
 frob <command> --help        # Show detailed help for a command
 ```
@@ -672,6 +677,7 @@ FROB_INIT_SCRIPTS="/a.js,/b.js"     # Comma-separated init script paths
 FROB_ENABLE="react-devtools"        # Comma-separated built-in init script features
 FROB_HIDE_SCROLLBARS="false"        # Keep native scrollbars visible in headless Chromium screenshots
 FROB_WEBGPU="1"                     # Enable the WebGPU launch preset (see references/webgpu.md)
+FROB_SHARED_BROWSER="1"             # Run sessions as isolated contexts in one shared Chrome
 FROB_NO_XVFB="1"                    # Disable automatic Xvfb for headed mode on displayless Linux
 FROB_NO_VERSION_CHECK="1"           # Skip the outdated-Chrome CVE check and its request to Google
 FROB_PROVIDER="browserbase"         # Browser provider or configured provider plugin

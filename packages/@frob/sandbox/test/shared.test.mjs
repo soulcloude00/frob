@@ -51,7 +51,7 @@ test("quotes shell args and builds commands", () => {
       env: { FROB_HOME: "/tmp/frob" },
       session: "s1",
     }),
-    "FROB_HOME='/tmp/frob' frob --session s1 open 'https://example.com/a b' --json",
+    "FROB_HOME=/tmp/frob frob --session s1 open 'https://example.com/a b' --json",
   );
 });
 

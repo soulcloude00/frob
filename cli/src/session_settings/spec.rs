@@ -32,7 +32,7 @@ keys! {
     // Launch-shaping.
     Engine, Headed, Profile, Args, ExecutablePath, Extensions, Proxy, ProxyBypass,
     ProxyUsername, ProxyPassword, UserAgent, IgnoreHttpsErrors, AllowFileAccess,
-    HideScrollbars, Webgpu, Webmcp, NoXvfb, CaCert, ClearCaCert, InitScripts, Enable,
+    HideScrollbars, Webgpu, Webmcp, SharedBrowser, NoXvfb, CaCert, ClearCaCert, InitScripts, Enable,
     Plugins, StorageState, ColorScheme, DownloadPath, Capture,
     // Security.
     AllowedDomains, ActionPolicy, ConfirmActions,
@@ -252,6 +252,10 @@ fn read_webgpu(f: &Flags) -> Option<Requested> {
 }
 fn read_webmcp(f: &Flags) -> Option<Requested> {
     (f.no_webmcp || f.cli_no_webmcp).then_some(Requested::Set(Value::Bool(!f.no_webmcp)))
+}
+fn read_shared_browser(f: &Flags) -> Option<Requested> {
+    (f.shared_browser || f.cli_shared_browser)
+        .then_some(Requested::Set(Value::Bool(f.shared_browser)))
 }
 fn read_no_xvfb(f: &Flags) -> Option<Requested> {
     // An explicit off value has to reach a session that was started with it on.
@@ -540,6 +544,16 @@ pub static SPECS: &[Spec] = &[
         false,
         Bool,
         read_webmcp
+    ),
+    row!(
+        SharedBrowser,
+        "shared-browser",
+        "--shared-browser",
+        Launch,
+        Memory,
+        false,
+        Bool,
+        read_shared_browser
     ),
     row!(
         NoXvfb,
