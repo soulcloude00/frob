@@ -735,7 +735,7 @@ pub(crate) fn prepare_nss_home(_ca_cert: &CaBundle) -> Result<PreparedNssHome, S
     Err("--ca-cert is currently supported only on Linux".to_string())
 }
 
-#[cfg(test)]
+#[cfg(any(test, target_os = "linux"))]
 fn resolve_prepared_nss_home(options: &LaunchOptions) -> Result<Option<PreparedNssHome>, String> {
     if let Some(home) = options.prepared_nss_home.clone() {
         return Ok(Some(home));
