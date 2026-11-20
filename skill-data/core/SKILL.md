@@ -10,7 +10,9 @@ frob drives Chrome over CDP from the command line. A snapshot returns the page's
 
 ## Always use your own session
 
-Before your first command, get a session name for the task. It is stable for the worktree, so running it again prints the same name:
+If `FROB_SESSION` is already set in your environment, your harness chose a session for you: skip this section and run commands without `--session`.
+
+Otherwise, before your first command, get a session name for the task. It is stable for the worktree, so running it again prints the same name:
 
 ```bash
 frob session id --scope worktree --prefix task   # prints a name such as task-be5442ae6b6b
